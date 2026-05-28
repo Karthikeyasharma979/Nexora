@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Cloud, Clock, Maximize, Settings, ChevronDown, 
   Grid, Calculator, Flag, Bookmark, X, AlertTriangle, MessageSquare,
-  Info, ChevronLeft, ChevronRight, Wifi, StopCircle
+  Info, ChevronLeft, ChevronRight, Wifi, StopCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { playTimerWarning } from '../utils/audioUtils';
 import { getTestById, saveReport } from '../utils/db';
@@ -13,12 +14,14 @@ const TestInterface = () => {
   const navigate = useNavigate();
   const { testId } = useParams();
   const [testDetails, setTestDetails] = useState(null);
+  const [errorReason, setErrorReason] = useState(null);
   
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [revisited, setRevisited] = useState({});
   const [viewed, setViewed] = useState({});
   const [showFinishPanel, setShowFinishPanel] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showSectionDropdown, setShowSectionDropdown] = useState(false);
   const [filterType, setFilterType] = useState('All'); // All, Attempted, Revisited, Unattempted
@@ -31,14 +34,12 @@ const TestInterface = () => {
           setTestDetails(test);
           setTimeRemaining(test.duration);
         } else {
-          alert("Invalid Test Link");
-          navigate('/');
+          setErrorReason(`Test not found for ID: "${testId}"`);
         }
       })
       .catch(err => {
         console.error("Error fetching test details:", err);
-        alert("Failed to load test");
-        navigate('/');
+        setErrorReason(`Fetch Error: ${err.message}. ID: "${testId}"`);
       });
   }, [testId, navigate]);
 
@@ -137,6 +138,16 @@ const TestInterface = () => {
     setRevisited(prev => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }));
   };
 
+  if (errorReason) {
+    return (
+      <div style={{padding: '50px', textAlign: 'center', color: 'white'}}>
+        <h2>Failed to Load Test</h2>
+        <p style={{fontFamily: 'monospace', color: '#ff6b6b'}}>{errorReason}</p>
+        <p>Current URL: {window.location.href}</p>
+      </div>
+    );
+  }
+
   if (!testDetails) return <div style={{padding: '50px', textAlign: 'center'}}>Loading test environment...</div>;
 
   const currentQ = testDetails.questions[currentQuestionIdx];
@@ -179,8 +190,8 @@ const TestInterface = () => {
       {/* Global Header */}
       <header className="ti-header">
         <div className="ti-header-left">
-          <div className="ti-logo">
-            <img src="/nexora-sync-logo.svg" alt="Nexora | sync logo" style={{ height: '30px' }} />
+          <div className="ti-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
+            <ShieldCheck size={24} style={{ color: '#4ade80' }} /> Nexora | sync
           </div>
           <div className="ti-user-info">
             <span className="ti-user-name">{sessionStorage.getItem('candidateName') || 'Harry'}</span>
@@ -196,6 +207,8 @@ const TestInterface = () => {
           <div className="ti-timer">
             <Clock size={16} className="mr-2" /> Test Time: {formatTime(timeRemaining)}
           </div>
+          <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.max(12, prev - 2))} title="Decrease Font Size" style={{ fontWeight: 'bold', fontSize: '12px' }}>A-</button>
+          <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.min(24, prev + 2))} title="Increase Font Size" style={{ fontWeight: 'bold', fontSize: '14px' }}>A+</button>
           <button className="ti-icon-btn"><Maximize size={18} /></button>
           <button className="ti-icon-btn"><Settings size={18} /></button>
           <button className="ti-btn-finish" onClick={() => setShowFinishPanel(true)}>Finish Test</button>
@@ -374,7 +387,7 @@ const TestInterface = () => {
               <Bookmark size={14} className={`mr-1 ${revisited[currentQ.id] ? 'fill-current text-orange' : ''}`} /> Revisit Later
             </div>
           </div>
-          <div className="ti-question-text">
+          <div className="ti-question-text" style={{ fontSize: `${fontSize}px` }}>
             {currentQ.text}
           </div>
         </div>
@@ -396,7 +409,7 @@ const TestInterface = () => {
                   checked={answers[currentQ.id] === idx}
                   onChange={() => handleSelectOption(idx)}
                 />
-                <span className="ti-option-text">{opt}</span>
+                <span className="ti-option-text" style={{ fontSize: `${fontSize - 1}px` }}>{opt}</span>
               </label>
             ))}
           </div>
@@ -420,10 +433,6 @@ const TestInterface = () => {
         </div>
       </footer>
 
-      {/* Floating Chat Button */}
-      <button type="button" className="ti-chat-fab">
-        Chat Now <MessageSquare size={18} className="ml-2 fill-current" />
-      </button>
 
       {/* Finish Test Side Panel */}
       {showFinishPanel && (

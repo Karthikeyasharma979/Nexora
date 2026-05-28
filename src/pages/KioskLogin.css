@@ -1,0 +1,277 @@
+.kiosk-login-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+}
+
+.kiosk-login-split {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Left Panel */
+.kiosk-left-panel {
+  flex: 4;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+}
+
+.kiosk-brand {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.brand-title {
+  font-size: 56px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.brand-highlight {
+  color: #D32F2F; /* Red similar to CoCubes */
+}
+
+.brand-subtitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 5px 0 0 0;
+  letter-spacing: 0.5px;
+}
+
+.kiosk-form {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kiosk-error-alert {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #f87171;
+}
+
+.input-group {
+  display: flex;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  overflow: hidden;
+  height: 48px;
+}
+
+.input-icon-wrapper {
+  width: 48px;
+  background-color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #ccc;
+}
+
+.kiosk-input {
+  flex: 1;
+  border: none;
+  padding: 0 16px;
+  font-size: 16px;
+  outline: none;
+  color: #333;
+}
+
+.kiosk-input::placeholder {
+  color: #999;
+}
+
+.btn-kiosk-start {
+  background-color: #2b70b5; /* Blue */
+  color: white;
+  border: none;
+  height: 48px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-kiosk-start:hover {
+  background-color: #215c99;
+}
+
+.btn-kiosk-start:disabled {
+  background-color: #8bb5e0;
+  cursor: not-allowed;
+}
+
+/* Right Panel */
+.kiosk-right-panel {
+  flex: 5;
+  background-color: #f4f4f4; /* Light gray background */
+  border-left: 1px solid #ddd;
+  padding: 0 40px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.system-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px 0 15px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.system-summary-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #444;
+}
+
+.btn-refresh {
+  background: none;
+  border: none;
+  color: #2b70b5;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-refresh:hover {
+  background-color: #e9ecef;
+  border-radius: 50%;
+}
+
+.system-checks-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  padding: 24px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.check-item:last-child {
+  border-bottom: none;
+}
+
+.check-icon-col {
+  width: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #666;
+}
+
+.check-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.check-title {
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 4px;
+}
+
+.check-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon.success {
+  color: #2eb85c;
+}
+
+.status-icon.error {
+  color: #e55353;
+}
+
+.status-icon.pending {
+  color: #f9b115;
+}
+
+.spinner {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.status-text {
+  font-size: 15px;
+  color: #333;
+}
+
+.status-text.error {
+  color: #e55353;
+}
+
+.dual-item {
+  display: flex;
+  align-items: center;
+  padding: 24px 0;
+}
+
+.dual-item .sub-check {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Footer */
+.kiosk-footer {
+  height: 48px;
+  background-color: #ffffff;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+  font-size: 13px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-links a {
+  color: #2b70b5;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.footer-copyright {
+  color: #666;
+}

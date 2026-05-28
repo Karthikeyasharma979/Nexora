@@ -19,6 +19,8 @@ const AdminDashboard = () => {
   const [tests, setTests] = useState([]);
   const [editingTestId, setEditingTestId] = useState(null);
   const [newTestName, setNewTestName] = useState('');
+  const [newTestStartTime, setNewTestStartTime] = useState('');
+  const [newTestEndTime, setNewTestEndTime] = useState('');
   const [newTestDuration, setNewTestDuration] = useState(900); // 15 mins default
   const [newTestRequireCamera, setNewTestRequireCamera] = useState(true);
   const [questions, setQuestions] = useState([]);
@@ -81,6 +83,8 @@ const AdminDashboard = () => {
   const handleEditTest = (test) => {
     setEditingTestId(test.id);
     setNewTestName(test.name);
+    setNewTestStartTime(test.startTime || '');
+    setNewTestEndTime(test.endTime || '');
     setNewTestDuration(test.duration);
     setNewTestRequireCamera(test.requireCamera !== false);
     setQuestions([...test.questions]);
@@ -93,6 +97,8 @@ const AdminDashboard = () => {
   const handleCancelEdit = () => {
     setEditingTestId(null);
     setNewTestName('');
+    setNewTestStartTime('');
+    setNewTestEndTime('');
     setNewTestRequireCamera(true);
     setQuestions([]);
     setActiveTab('tests');
@@ -149,6 +155,8 @@ const AdminDashboard = () => {
     const newTest = {
       id: editingTestId || ('test-' + Math.random().toString(36).substr(2, 9)),
       name: newTestName,
+      startTime: newTestStartTime || null,
+      endTime: newTestEndTime || null,
       duration: parseInt(newTestDuration, 10),
       requireCamera: newTestRequireCamera,
       questions: questions
@@ -163,6 +171,8 @@ const AdminDashboard = () => {
             setTests(data);
             setEditingTestId(null);
             setNewTestName('');
+            setNewTestStartTime('');
+            setNewTestEndTime('');
             setNewTestRequireCamera(true);
             setQuestions([]);
             alert('Test updated successfully!');
@@ -183,6 +193,8 @@ const AdminDashboard = () => {
       .then(data => {
         setTests(data);
         setNewTestName('');
+        setNewTestStartTime('');
+        setNewTestEndTime('');
         setNewTestRequireCamera(true);
         setQuestions([]);
         alert('Test created successfully!');
@@ -195,7 +207,7 @@ const AdminDashboard = () => {
   };
 
   const getTestLink = (testId) => {
-    return `${window.location.origin}/pre-test/${testId}`;
+    return `${window.location.origin}/#/pre-test/${testId}`;
   };
 
   const copyToClipboard = (link) => {
@@ -298,15 +310,15 @@ const AdminDashboard = () => {
                   <h2>Recent Tests</h2>
                   <button className="btn-text" onClick={() => setActiveTab('tests')} style={{ color: '#0056b3', fontWeight: '600' }}>View All</button>
                 </div>
-                <div style={{ marginTop: '15px' }}>
+                <div style={{ padding: '0 30px 20px 30px' }}>
                   {tests.slice(0, 3).map(test => (
                     <div key={test.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f3f5' }}>
                       <div>
                         <div style={{ fontWeight: '600', color: '#1e293b' }}>{test.name}</div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{test.questions.length} questions • {test.duration / 60} mins</div>
                       </div>
-                      <div className="copy-link-wrapper" style={{ width: '180px' }}>
-                        <input type="text" readOnly value={getTestLink(test.id)} className="link-input" style={{ fontSize: '11px' }} />
+                      <div className="copy-link-wrapper" style={{ width: '220px' }}>
+                        <input type="text" readOnly value={getTestLink(test.id)} className="link-input" style={{ fontSize: '11px', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} />
                         <button className="icon-btn-action" onClick={() => copyToClipboard(getTestLink(test.id))}>
                           <Copy size={14} />
                         </button>
@@ -322,11 +334,11 @@ const AdminDashboard = () => {
                   <h2>Recent Candidate Activity</h2>
                   <button className="btn-text" onClick={() => setActiveTab('reports')} style={{ color: '#0056b3', fontWeight: '600' }}>View All</button>
                 </div>
-                <div style={{ marginTop: '15px' }}>
-                  {MOCK_CANDIDATES.slice(0, 3).map(candidate => (
-                    <div key={candidate.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f3f5' }}>
+                <div style={{ padding: '0 30px 20px 30px' }}>
+                  {reports.slice(0, 3).map((candidate, idx) => (
+                    <div key={candidate._id || candidate.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f3f5' }}>
                       <div>
-                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{candidate.name}</div>
+                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{candidate.candidateName}</div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Score: {candidate.score}</div>
                       </div>
                       <div>
@@ -336,6 +348,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   ))}
+                  {reports.length === 0 && <p className="text-secondary" style={{ padding: '15px 0' }}>No candidates have taken a test yet.</p>}
                 </div>
               </div>
             </div>
@@ -519,6 +532,17 @@ const AdminDashboard = () => {
                       <option value="7200">120 Minutes (2 Hours)</option>
                       <option value="10800">180 Minutes (3 Hours)</option>
                     </select>
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group flex-1">
+                    <label>Start Time (Optional)</label>
+                    <input type="datetime-local" className="modern-input" value={newTestStartTime} onChange={e => setNewTestStartTime(e.target.value)} />
+                  </div>
+                  <div className="form-group flex-1">
+                    <label>End Time (Optional)</label>
+                    <input type="datetime-local" className="modern-input" value={newTestEndTime} onChange={e => setNewTestEndTime(e.target.value)} />
                   </div>
                 </div>
                 

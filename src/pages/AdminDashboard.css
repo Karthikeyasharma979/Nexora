@@ -282,6 +282,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
@@ -308,6 +309,8 @@
   color: #64748b;
   width: 100%;
   outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Builder Layout */

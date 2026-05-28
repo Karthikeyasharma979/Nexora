@@ -30,21 +30,26 @@ const PreTestWelcome = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPlaying, setIsCarouselPlaying] = useState(true);
   const [showCookieBanner, setShowCookieBanner] = useState(true);
+  const [timeError, setTimeError] = useState(null);
 
   useEffect(() => {
     getTestById(testId)
       .then(test => {
         if (test) {
           setTestDetails(test);
+          const now = new Date();
+          if (test.startTime && now < new Date(test.startTime)) {
+            setTimeError(`Test has not started yet. Please wait until ${new Date(test.startTime).toLocaleString()}.`);
+          } else if (test.endTime && now > new Date(test.endTime)) {
+            setTimeError('This test window has expired.');
+          }
         } else {
-          alert("Invalid Test Link");
-          navigate('/');
+          navigate('/', { replace: true });
         }
       })
       .catch(err => {
         console.error("Error fetching test details:", err);
-        alert("Failed to load test");
-        navigate('/');
+        navigate('/', { replace: true });
       });
   }, [testId, navigate]);
 
@@ -100,9 +105,15 @@ const PreTestWelcome = () => {
             </div>
           </div>
 
-          <button className="pt-proceed-btn" onClick={proceedToTest}>
-            Proceed
-          </button>
+          {timeError ? (
+            <div style={{ color: '#d32f2f', backgroundColor: '#fdecea', padding: '15px', borderRadius: '4px', marginTop: '30px', fontWeight: '500', borderLeft: '4px solid #d32f2f' }}>
+              {timeError}
+            </div>
+          ) : (
+            <button className="pt-proceed-btn" onClick={proceedToTest}>
+              Proceed
+            </button>
+          )}
         </div>
 
         {/* Right Side: Carousel Card */}

@@ -5,8 +5,9 @@ import '@tensorflow/tfjs';
 import { playViolationWarning } from '../utils/audioUtils';
 
 const ProctoringEngine = ({ children, requireCamera = true }) => {
+  const isElectron = /electron/i.test(navigator.userAgent);
   const [violations, setViolations] = useState([]);
-  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [isFullscreen, setIsFullscreen] = useState(isElectron || !!document.fullscreenElement);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraMinimized, setIsCameraMinimized] = useState(false);
   const [activeWarning, setActiveWarning] = useState(null); // Custom alert overlay
@@ -16,15 +17,21 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
   const MAX_VIOLATIONS = 3;
 
   const addViolation = (type, message, alertText = null) => {
+    let latestViolations = [];
     setViolations(prev => {
       const newViolations = [...prev, { type, message, timestamp: new Date() }];
-      if (type === 'ELECTRONIC_DEVICE') {
-        window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Severe violation: Mobile phone or electronic device detected.' } }));
-      } else if (newViolations.length >= MAX_VIOLATIONS) {
-        window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Excessive violations threshold reached (3 strikes).' } }));
-      }
+      latestViolations = newViolations;
       return newViolations;
     });
+
+    // Synchronously save to session storage so the final strike isn't lost if we navigate immediately
+    sessionStorage.setItem('violations', JSON.stringify(latestViolations));
+
+    if (type === 'ELECTRONIC_DEVICE') {
+      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Severe violation: Mobile phone or electronic device detected.', violations: latestViolations } }));
+    } else if (latestViolations.length >= MAX_VIOLATIONS) {
+      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Excessive violations threshold reached (3 strikes).', violations: latestViolations } }));
+    }
     console.warn(`PROCTORING VIOLATION: ${message}`);
     if (
       type === 'TAB_SWITCH' || 
@@ -61,7 +68,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
     setProctoringStatus('Monitoring Active');
     
     // Automatically enforce fullscreen if they dropped out of it, saving them a second click
-    if (!document.fullscreenElement) {
+    if (!isElectron && !document.fullscreenElement) {
       enforceFullscreen();
     }
   };
@@ -144,6 +151,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
 
   // 5. Fullscreen Enforcement
   const enforceFullscreen = () => {
+    if (isElectron) return;
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => {
         setIsFullscreen(true);
@@ -154,6 +162,8 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
   };
 
   useEffect(() => {
+    if (isElectron) return;
+    
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         setIsFullscreen(false);

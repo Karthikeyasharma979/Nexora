@@ -37,14 +37,12 @@ const Diagnostics = () => {
         if (test) {
           setTestDetails(test);
         } else {
-          alert("Invalid Test Link");
-          navigate('/');
+          navigate('/', { replace: true });
         }
       })
       .catch(err => {
         console.error("Error fetching test details:", err);
-        alert("Failed to load test");
-        navigate('/');
+        navigate('/', { replace: true });
       });
   }, [testId, navigate]);
 
@@ -154,13 +152,6 @@ const Diagnostics = () => {
   };
 
   const finalizeAndStartTest = async () => {
-    try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch (e) {
-      console.warn("Fullscreen request failed", e);
-    }
 
     // Save registration details to sessionStorage for the test environment to read
     sessionStorage.setItem('candidateName', candidateName.trim());
@@ -170,19 +161,21 @@ const Diagnostics = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
     }
+    
+    // Launch the custom protocol to trigger the Secure Browser prompt
+    window.location.href = `nexora://test/${testId}`;
+  };
+
+  const handleWebFallback = () => {
     navigate(`/test/${testId}`);
   };
 
   useEffect(() => {
     if (currentPhase === 3) {
-      if (gatewayTimer > 0) {
-        const timerId = setTimeout(() => setGatewayTimer(prev => prev - 1), 1000);
-        return () => clearTimeout(timerId);
-      } else {
-        finalizeAndStartTest();
-      }
+      // Automatically attempt to launch the secure browser when entering phase 3
+      finalizeAndStartTest();
     }
-  }, [currentPhase, gatewayTimer]);
+  }, [currentPhase]);
 
   useEffect(() => {
     if (currentPhase === 2 && (activeTab === 3 || activeTab === 4)) {
@@ -273,33 +266,38 @@ const Diagnostics = () => {
   if (currentPhase === 3) {
     return (
       <div className="diag-fullscreen-gateway">
-        <div className="diag-monitor-modal-container">
+          <div className="diag-monitor-modal-container">
             <div className="diag-monitor-bg-text">NEXORA | sync</div>
-            <div className="diag-monitor-modal">
-              <div className="diag-monitor-header">
-                <h3>Monitored Session</h3>
-                <div className="diag-monitor-timer">
-                  <div className="diag-spinner-icon small"></div>
-                  <span>Test starting in {gatewayTimer} secs</span>
-                </div>
+            <div className="diag-monitor-modal" style={{ maxWidth: '600px' }}>
+              <div className="diag-monitor-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px 30px' }}>
+                <h3 style={{ fontSize: '18px', color: '#1e293b' }}>Launch Nexora Secure Browser</h3>
               </div>
-              <div className="diag-monitor-body">
-                <div className="diag-monitor-info">
-                  <h4>Nexora will monitor your session for review</h4>
-                  <p>Please note that from here on you will be monitored via video/screen feed. This monitoring is being undertaken to eliminate any use of unfair means during the conduct of this session.</p>
-                  <p>The said video/screen feed can be viewed whether on a real time basis and/or accessed subsequently by only an authorized person of your employer / proposed employer/ institution for monitoring and audit.</p>
-                </div>
-                <div className="diag-monitor-icon">
-                  {/* CSS representation of webcam icon */}
-                  <div className="diag-webcam-icon">
-                    <div className="diag-webcam-lens"></div>
+              <div className="diag-monitor-body" style={{ textAlign: 'left', flexDirection: 'column', gap: '0', padding: '30px' }}>
+                <p style={{ marginBottom: '15px', color: '#475569' }}>Please keep this in mind before starting the test:</p>
+                
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '20px', marginBottom: '20px' }}>
+                  <strong style={{ color: '#0f172a', display: 'block', marginBottom: '10px' }}>Quick Note:</strong>
+                  <ul style={{ paddingLeft: '20px', color: '#334155', margin: '0 0 20px 0', lineHeight: '1.6' }}>
+                    <li style={{ marginBottom: '8px' }}>Nexora Secure Browser (NSB) will lock down your system. Please save your work before starting the test.</li>
+                    <li>Once NSB is launched, you will not be able to move out of the test window and open other applications / programs.</li>
+                  </ul>
+                  
+                  <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '15px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <AlertTriangle size={18} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span style={{ fontSize: '13px', color: '#475569' }}>
+                      Not able to launch test? Please <a href="#" onClick={(e) => { e.preventDefault(); finalizeAndStartTest(); }} style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '500' }}>click here to refresh</a> and try again.
+                    </span>
                   </div>
                 </div>
-              </div>
-              <div className="diag-monitor-footer">
-                <button className="diag-btn-primary" onClick={finalizeAndStartTest}>
-                  Proceed to Test
-                </button>
+
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  <button className="diag-btn-primary" onClick={finalizeAndStartTest} style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Launch Test <Laptop size={16} />
+                  </button>
+                  <button onClick={handleWebFallback} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
+                    Take test in standard web browser (Fallback)
+                  </button>
+                </div>
               </div>
             </div>
           </div>

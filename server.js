@@ -80,6 +80,8 @@ const testSchema = new mongoose.Schema({
   name: { type: String, required: true },
   duration: { type: Number, required: true }, // in seconds
   requireCamera: { type: Boolean, default: true },
+  startTime: { type: String, default: null },
+  endTime: { type: String, default: null },
   questions: [questionSchema]
 }, { timestamps: true });
 
@@ -150,7 +152,7 @@ app.get('/api/tests/:id', async (req, res) => {
 // 3. Save a new test
 app.post('/api/tests', async (req, res) => {
   try {
-    const { id, name, duration, requireCamera, questions } = req.body;
+    const { id, name, duration, requireCamera, questions, startTime, endTime } = req.body;
     if (!id || !name || !duration || !questions || questions.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -160,6 +162,8 @@ app.post('/api/tests', async (req, res) => {
       name,
       duration,
       requireCamera,
+      startTime,
+      endTime,
       questions
     };
 
@@ -202,12 +206,12 @@ app.delete('/api/tests/:id', async (req, res) => {
 // 5. Update an existing test by ID
 app.put('/api/tests/:id', async (req, res) => {
   try {
-    const { name, duration, requireCamera, questions } = req.body;
+    const { name, duration, requireCamera, questions, startTime, endTime } = req.body;
     if (!name || !duration || !questions || questions.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const updateData = { name, duration, requireCamera, questions };
+    const updateData = { name, duration, requireCamera, startTime, endTime, questions };
 
     if (useInMemoryDb) {
       const index = inMemoryTests.findIndex(t => t.id === req.params.id);
