@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://nexora-t8dh.onrender.com/api';
 
 // Helper to get all tests asynchronously
 export const getAllTests = async () => {

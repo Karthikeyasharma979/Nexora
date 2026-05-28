@@ -57,7 +57,7 @@ const KioskLogin = () => {
     // Network (Http-GET / Http-POST representation)
     if (navigator.onLine) {
       try {
-        const res = await fetch('http://localhost:5000/api/tests', { method: 'GET' });
+        const res = await fetch('https://nexora-t8dh.onrender.com/api/tests', { method: 'GET' });
         if (res.ok) {
           setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'ok' } }));
         } else {
