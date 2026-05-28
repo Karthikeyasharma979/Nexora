@@ -1,0 +1,728 @@
+.diag-container {
+  min-height: 100vh;
+  background-color: #f8f9fa; /* Very light gray background */
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #333;
+  position: relative;
+}
+
+.diag-header {
+  background-color: #0d1b2a;
+  color: white;
+  padding: 15px 30px;
+  font-size: 18px;
+}
+
+.diag-main {
+  flex: 1;
+  display: flex;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 50px 20px;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  margin-top: 20px;
+  margin-bottom: 60px;
+  border-radius: 4px;
+}
+
+/* Left Column */
+.diag-left {
+  flex: 1;
+  padding-right: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.diag-hi {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.diag-welcome {
+  font-size: 22px;
+  font-weight: 400;
+  color: #495057;
+  margin-bottom: 10px;
+}
+
+.diag-title {
+  font-size: 32px;
+  font-weight: 300;
+  color: #003b6e;
+  margin-bottom: 40px;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 20px;
+}
+
+.diag-stats {
+  display: flex;
+  gap: 30px;
+}
+
+.diag-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.diag-stat-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.diag-stat-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #343a40;
+}
+
+/* Middle Stepper */
+.diag-stepper {
+  width: 60px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+.diag-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background-color: #e9ecef;
+  z-index: 1;
+}
+
+.diag-step-icon {
+  width: 30px;
+  height: 30px;
+  background-color: white;
+  border: 2px solid #ced4da;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  color: #6c757d;
+}
+
+.diag-step-icon.active {
+  background-color: #00a8e8;
+  border-color: #00a8e8;
+  color: white;
+}
+
+/* Right Column */
+.diag-right {
+  flex: 1.5;
+  padding-left: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.diag-right-title {
+  font-size: 18px;
+  color: #495057;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.diag-checklist {
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.diag-check-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.diag-check-item:last-child {
+  border-bottom: none;
+}
+
+.diag-check-item.active {
+  background-color: #f8f9fa;
+}
+
+.diag-check-icon {
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.diag-spinner-icon {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #0056b3;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.diag-number-placeholder {
+  font-size: 14px;
+  color: #adb5bd;
+  margin-right: 15px;
+  width: 20px;
+  text-align: right;
+}
+
+.diag-check-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.diag-check-text strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: #343a40;
+}
+
+.diag-check-sub {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.diag-check-item.disabled strong {
+  color: #adb5bd;
+}
+
+.diag-proceed-btn {
+  padding: 10px 30px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.2s;
+}
+
+.diag-proceed-btn.disabled {
+  background-color: #6c757d;
+  color: white;
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.diag-proceed-btn.enabled {
+  background-color: #0056b3; /* Blue */
+  color: white;
+}
+
+.diag-proceed-btn.enabled:hover {
+  background-color: #004494;
+}
+
+/* Footer */
+.diag-footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 30px;
+  font-size: 12px;
+  color: #6c757d;
+  background-color: white;
+  border-top: 1px solid #e9ecef;
+}
+
+.diag-footer a {
+  color: #0056b3;
+  text-decoration: none;
+}
+
+.diag-footer-right strong {
+  color: #333;
+}
+
+.diag-chat-fab {
+  position: fixed;
+  bottom: 50px;
+  right: 30px;
+  background-color: #0056b3;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 100;
+}
+
+/* Things to remember phase */
+.diag-things-to-remember {
+  padding: 20px 0;
+}
+
+.diag-remember-list {
+  font-size: 13px;
+  color: #495057;
+  line-height: 1.8;
+  margin-top: 20px;
+  padding-left: 20px;
+}
+.diag-remember-list li {
+  margin-bottom: 12px;
+}
+
+/* Phase 2: Instructions Box */
+.diag-instructions-box {
+  background-color: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 20px;
+}
+
+.diag-inst-header {
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  color: #003b6e;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.diag-inst-list {
+  padding-left: 20px;
+  font-size: 13px;
+  color: #495057;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.diag-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.diag-scenario-group h4 {
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.diag-scenario-row {
+  display: flex;
+  gap: 20px;
+}
+
+.diag-scenario-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  color: #495057;
+}
+
+.diag-silhouette {
+  width: 60px;
+  height: 60px;
+  background-color: #f1f3f5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 8px;
+  color: #adb5bd;
+}
+
+.scenario-icon {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  background: white;
+  border-radius: 50%;
+}
+
+.text-success { color: #28a745; }
+.text-danger { color: #dc3545; }
+
+.diag-silhouette.blurred { filter: blur(2px); }
+.diag-silhouette.cut { clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%); }
+.diag-silhouette.dark { background-color: #343a40; color: #495057; }
+
+/* Phase 1: Registration Right Column */
+.diag-registration-header {
+  font-size: 13px;
+  color: #495057;
+  background-color: #f8f9fa;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.diag-tabs {
+  display: flex;
+  border: 1px solid #e9ecef;
+  border-radius: 4px 4px 0 0;
+  background-color: #f8f9fa;
+}
+
+.diag-tab {
+  padding: 15px 20px;
+  font-size: 13px;
+  color: #adb5bd;
+  border-bottom: 2px solid transparent;
+}
+
+.diag-tab.active {
+  color: #003b6e;
+  font-weight: 500;
+  border-bottom: 2px solid #003b6e;
+  background-color: white;
+}
+
+.diag-tab-content {
+  border: 1px solid #e9ecef;
+  border-top: none;
+  padding: 30px;
+  min-height: 300px;
+  border-radius: 0 0 4px 4px;
+  margin-bottom: 20px;
+}
+
+.diag-terms {
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.6;
+}
+
+.diag-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 30px 0;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.diag-btn-primary {
+  background-color: #0056b3;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.diag-btn-primary.disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.diag-btn-secondary {
+  background-color: white;
+  color: #0056b3;
+  border: 1px solid #0056b3;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.diag-capture-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.diag-capture-instruction {
+  color: #495057;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.diag-capture-error {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  border-left: 4px solid #dc2626;
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.diag-video-container {
+  position: relative;
+  width: 400px;
+  height: 300px;
+  background-color: #000;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.diag-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror */
+}
+
+.diag-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+/* Very simple CSS face outline representation */
+.diag-overlay.face-outline::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 180px; height: 240px;
+  border: 4px solid rgba(255,255,255,0.7);
+  border-radius: 45% 45% 50% 50%;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
+}
+
+.diag-overlay.id-outline::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px; height: 180px;
+  border: 4px solid rgba(255,255,255,0.7);
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
+}
+
+/* Phase 3 & 4: Fullscreen Gateway */
+.diag-fullscreen-gateway {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #0a192f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.diag-gateway-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 600px;
+}
+
+.diag-gateway-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.diag-gateway-text {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 40px;
+  color: #ccd6f6;
+}
+
+.diag-gateway-btn {
+  background-color: #1a56db;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.diag-gateway-btn:hover { background-color: #1e40af; }
+
+.diag-gateway-pill {
+  position: absolute;
+  bottom: 40px;
+  background-color: rgba(255,255,255,0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.diag-monitor-modal-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #495563; /* Darker slate */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diag-monitor-bg-text {
+  position: absolute;
+  font-size: 15vw;
+  font-weight: 900;
+  color: rgba(0,0,0,0.1);
+  pointer-events: none;
+  white-space: nowrap;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.diag-monitor-modal {
+  background: white;
+  color: #333;
+  width: 90%;
+  max-width: 800px;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.diag-monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.diag-monitor-header h3 {
+  font-size: 18px;
+  color: #1e3a8a;
+  margin: 0;
+}
+
+.diag-monitor-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.diag-spinner-icon.small {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.diag-monitor-body {
+  display: flex;
+  padding: 40px 30px;
+  gap: 40px;
+}
+
+.diag-monitor-info {
+  flex: 1;
+}
+
+.diag-monitor-info h4 {
+  font-size: 15px;
+  color: #1e3a8a;
+  margin-bottom: 20px;
+  margin-top: 0;
+}
+
+.diag-monitor-info p {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.diag-monitor-icon {
+  width: 150px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.diag-webcam-icon {
+  width: 80px;
+  height: 80px;
+  background-color: #e2e8f0;
+  border-radius: 50%;
+  position: relative;
+  border: 4px solid #cbd5e1;
+}
+
+.diag-webcam-icon::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 10px;
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.diag-webcam-lens {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  background-color: #1e293b;
+  border-radius: 50%;
+  border: 4px solid white;
+}
+.diag-webcam-lens::after {
+  content: '';
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 6px; height: 6px;
+  background: #ef4444; /* Red recording dot */
+  border-radius: 50%;
+}
+
+.diag-monitor-footer {
+  padding: 0 30px 30px;
+}

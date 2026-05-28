@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --mettl-navy: #0a1d47;
+  --mettl-blue: #1e56a0;
+  --mettl-light-blue: #e8f0fe;
+  --mettl-gray-border: #dcdfe4;
+  --mettl-gray-bg: #f8f9fa;
+  --mettl-text-primary: #212529;
+  --mettl-text-secondary: #6c757d;
+  --mettl-success: #28a745;
+  --mettl-warning: #ffc107;
+  --mettl-danger: #dc3545;
+  --mettl-white: #ffffff;
+  
+  --font-main: 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  overscroll-behavior: none; /* Prevents trackpad back/forward swipe gestures */
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--mettl-white);
+  color: var(--mettl-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utilities */
+.btn-primary {
+  background-color: var(--mettl-blue);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #154582;
+}
+
+.btn-primary:disabled {
+  background-color: #a0bdec;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--mettl-blue);
+  border: 1px solid var(--mettl-blue);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background-color: var(--mettl-light-blue);
+}
+
+.split-pane {
+  display: flex;
+  height: calc(100vh - 60px); /* header height */
+}
+
+.pane-left {
+  flex: 1;
+  border-right: 1px solid var(--mettl-gray-border);
+  padding: 40px;
+}
+
+.pane-right {
+  flex: 1;
+  padding: 40px;
+  background-color: var(--mettl-white);
+}
+
+.card {
+  border: 1px solid var(--mettl-gray-border);
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
