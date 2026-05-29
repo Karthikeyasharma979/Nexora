@@ -66,12 +66,12 @@ const TestCompleted = () => {
       {/* Bottom Card */}
       <div className="tc-card tc-bottom-card">
         <p className="tc-disclaimer">
-          Dear Candidate, Nexora | sync and its employees do not use your personally 
+          Dear Candidate, Nexora and its employees do not use your personally 
           identifiable information like Aadhar card, PAN card details, Credit card, Debit card, 
           Bank account numbers etc. for any purpose.
         </p>
         <p className="tc-disclaimer mt-3">
-          If anyone posing to be Nexora | sync employee/representative contacts you with 
+          If anyone posing to be Nexora employee/representative contacts you with 
           a request to share any such information, we urge you not to entertain such requests 
           and alert us on <strong>support@nexora.com</strong> immediately.
         </p>

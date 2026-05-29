@@ -2,16 +2,44 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://karthikeyasharma888_db_user:bcFea7ZySw1Dcoll@cluster0.gvcdx8s.mongodb.net/TaskioDB?retryWrites=true&w=majority&appName=Cluster0';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Auth Middleware
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026');
+    if (decoded.role !== 'admin') throw new Error('Not admin');
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Forbidden: Invalid token' });
+  }
+};
 
 // Resilient Fallback State
 let useInMemoryDb = false;
@@ -82,6 +110,9 @@ const testSchema = new mongoose.Schema({
   requireCamera: { type: Boolean, default: true },
   startTime: { type: String, default: null },
   endTime: { type: String, default: null },
+  moduleType: { type: String, default: 'quiz' },
+  targetUrl: { type: String, default: '' },
+  requireSEB: { type: Boolean, default: true },
   questions: [questionSchema]
 }, { timestamps: true });
 
@@ -114,8 +145,14 @@ async function seedDatabase() {
 }
 
 // Routes
-// 1. Get all tests
-app.get('/api/tests', async (req, res) => {
+
+// Health Check / Keep-Alive Route (For Cron Jobs)
+app.get('/', (req, res) => {
+  res.status(200).send('Nexora Backend Server is up and running!');
+});
+
+// 1. Get all tests (Admin Only)
+app.get('/api/tests', authenticateAdmin, async (req, res) => {
   if (useInMemoryDb) {
     return res.json(inMemoryTests);
   }
@@ -150,10 +187,10 @@ app.get('/api/tests/:id', async (req, res) => {
 });
 
 // 3. Save a new test
-app.post('/api/tests', async (req, res) => {
+app.post('/api/tests', authenticateAdmin, async (req, res) => {
   try {
-    const { id, name, duration, requireCamera, questions, startTime, endTime } = req.body;
-    if (!id || !name || !duration || !questions || questions.length === 0) {
+    const { id, name, duration, requireCamera, questions, startTime, endTime, moduleType, targetUrl, requireSEB } = req.body;
+    if (!id || !name || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -164,7 +201,10 @@ app.post('/api/tests', async (req, res) => {
       requireCamera,
       startTime,
       endTime,
-      questions
+      moduleType: moduleType || 'quiz',
+      targetUrl: targetUrl || '',
+      requireSEB: requireSEB !== undefined ? requireSEB : true,
+      questions: questions || []
     };
 
     if (useInMemoryDb) {
@@ -182,7 +222,7 @@ app.post('/api/tests', async (req, res) => {
 });
 
 // 4. Delete a test by ID
-app.delete('/api/tests/:id', async (req, res) => {
+app.delete('/api/tests/:id', authenticateAdmin, async (req, res) => {
   if (useInMemoryDb) {
     const initialLength = inMemoryTests.length;
     inMemoryTests = inMemoryTests.filter(t => t.id !== req.params.id);
@@ -204,14 +244,24 @@ app.delete('/api/tests/:id', async (req, res) => {
 });
 
 // 5. Update an existing test by ID
-app.put('/api/tests/:id', async (req, res) => {
+app.put('/api/tests/:id', authenticateAdmin, async (req, res) => {
   try {
-    const { name, duration, requireCamera, questions, startTime, endTime } = req.body;
-    if (!name || !duration || !questions || questions.length === 0) {
+    const { name, duration, requireCamera, questions, startTime, endTime, moduleType, targetUrl, requireSEB } = req.body;
+    if (!name || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const updateData = { name, duration, requireCamera, startTime, endTime, questions };
+    const updateData = { 
+      name, 
+      duration, 
+      requireCamera, 
+      startTime, 
+      endTime, 
+      moduleType: moduleType || 'quiz', 
+      targetUrl: targetUrl || '', 
+      requireSEB: requireSEB !== undefined ? requireSEB : true,
+      questions: questions || [] 
+    };
 
     if (useInMemoryDb) {
       const index = inMemoryTests.findIndex(t => t.id === req.params.id);
@@ -239,7 +289,7 @@ app.put('/api/tests/:id', async (req, res) => {
 });
 
 // 6. Get all reports
-app.get('/api/reports', async (req, res) => {
+app.get('/api/reports', authenticateAdmin, async (req, res) => {
   if (useInMemoryDb) {
     return res.json(inMemoryReports);
   }
@@ -277,7 +327,150 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
+// --- ADMIN & SECURE INVITE ROUTES ---
+
+// Admin Login
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  
+  if (password === adminPassword) {
+    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026', { expiresIn: '12h' });
+    return res.json({ token });
+  } else {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+});
+
+// Generate Secure Invite (Admin Only)
+app.post('/api/invite/generate', authenticateAdmin, (req, res) => {
+  const { testId, candidateEmail } = req.body;
+  if (!testId) return res.status(400).json({ error: 'testId is required' });
+
+  const token = jwt.sign(
+    { testId, candidateEmail, type: 'invite' },
+    process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026',
+    { expiresIn: '7d' } // Link valid for 7 days
+  );
+  
+  res.json({ token, link: `nexora://invite/${token}` });
+});
+
+// Verify Secure Invite Logic
+app.get('/api/invite/verify/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // 1. Verify JWT
+    const decoded = jwt.verify(
+      token, 
+      process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026'
+    );
+    
+    if (decoded.type !== 'invite') {
+      return res.status(400).json({ error: 'Invalid token type' });
+    }
+
+    // 2. Fetch the test to check if requireSEB is enabled
+    let requireSEB = true;
+    let test = null;
+    if (useInMemoryDb) {
+      test = inMemoryTests.find(t => t.id === decoded.testId);
+    } else {
+      test = await Test.findOne({ id: decoded.testId });
+    }
+    
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    if (test.requireSEB !== undefined) {
+      requireSEB = test.requireSEB;
+    }
+
+    res.json({ testId: decoded.testId, candidateEmail: decoded.candidateEmail, requireSEB, test });
+  } catch (error) {
+    console.error('Invite verification failed:', error.message);
+    res.status(403).json({ error: 'Invalid or expired invite link' });
+  }
+});
+
+// Send Email Invite (Admin Only)
+app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
+  const { testId, testName, candidateEmail } = req.body;
+  if (!testId || !candidateEmail) {
+    return res.status(400).json({ error: 'Missing testId or candidateEmail' });
+  }
+
+  try {
+    // Generate token
+    const token = jwt.sign(
+      { testId, candidateEmail, type: 'invite' },
+      process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026',
+      { expiresIn: '7d' }
+    );
+    const secureLink = `nexora://invite/${token}`;
+    const fallbackLink = `http://localhost:5173/#/invite/${token}`; // For dev
+
+    // Setup Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    const mailOptions = {
+      from: `"Nexora Assessments" <${process.env.EMAIL_USERNAME}>`,
+      to: candidateEmail,
+      subject: `Invitation for Assessment: ${testName || 'Aptitude Test'}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; border: 1px solid #ddd; background-color: #f9f9f9;">
+          <div style="background-color: #0b1a30; padding: 20px;">
+             <h2 style="color: #00b4d8; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">Nexora<span style="color:#fff;">Secure</span></h2>
+          </div>
+          
+          <div style="padding: 30px;">
+            <p>Dear Candidate,</p>
+            <p>Greetings from Nexora!</p>
+            <p>We are pleased to inform you that you have been shortlisted for the upcoming <strong>${testName || 'aptitude assessment'}</strong>.</p>
+            <p>We request you to kindly go through the below mentioned mandatory prerequisites guidelines well in advance to ensure a smooth assessment experience.</p>
+            
+            <div style="background-color: #eef2f5; padding: 20px; border-radius: 5px; margin-top: 30px;">
+              <h3 style="color: #2c3e50; margin-top: 0;">Important points:</h3>
+              <ul style="line-height: 1.6; color: #444;">
+                <li>Take the assessment in a quiet, noise-free and well-lit environment.</li>
+                <li>Ensure your webcam is functional and well connected. You will be monitored via webcam during the assessment.</li>
+                <li>Require stable internet connection with minimum 512 kbps speed.</li>
+                <li><strong>Only one attempt is available.</strong> Ensure laptop battery is fully charged.</li>
+                <li><strong>Do not press F5 or refresh during the exam</strong> - as it would auto-submit and end the assessment.</li>
+              </ul>
+            </div>
+
+            <p style="margin-top: 30px;">The assessment window is now open. Click on the button below to start the assessment securely.</p>
+            
+            <a href="${fallbackLink}" style="display: inline-block; background-color: #0d47a1; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 20px; font-weight: bold; margin-top: 10px; margin-bottom: 20px;">Start test ▶</a>
+            
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">If you are unable to launch the app, ensure you have the Nexora Secure Browser installed.</p>
+            
+            <p style="margin-top: 40px;">Wishing you all the best for the assessment!</p>
+            <p>Regards,<br/><strong>Talent Acquisition Team</strong></p>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Email sent successfully', secureLink });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

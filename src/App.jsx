@@ -10,6 +10,9 @@ import TestCompleted from './pages/TestCompleted';
 import InvalidLink from './pages/InvalidLink';
 import HomePage from './pages/HomePage';
 import KioskLogin from './pages/KioskLogin';
+import AdminLogin from './pages/AdminLogin';
+import SecureInvite from './pages/SecureInvite';
+import ProtectedRoute from './components/ProtectedRoute';
 import { initializeDB } from './utils/db';
 
 initializeDB();
@@ -28,6 +31,9 @@ function App() {
         <Route path="/pre-test/:testId" element={<PreTestWelcome />} />
         <Route path="/diagnostics/:testId" element={<Diagnostics />} />
         
+        {/* Secure Invite Route */}
+        <Route path="/invite/:token" element={<SecureInvite />} />
+        
         {/* Candidate Routes */}
         <Route element={<TestLayout />}>
           <Route path="/test/:testId" element={<TestInterface />} />
@@ -36,9 +42,14 @@ function App() {
         {/* Post-Test Route */}
         <Route path="/completed" element={<TestCompleted />} />
 
+        {/* Admin Login */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
+        <Route path="/admin" element={<ProtectedRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+          </Route>
         </Route>
 
         {/* Fallback for invalid URLs */}

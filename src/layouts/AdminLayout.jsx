@@ -14,8 +14,8 @@ const AdminLayout = () => {
     <div className="admin-layout-wrapper">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <div className="brand-logo">M</div>
-          <span className="brand-name">Mettl Admin</span>
+          <div className="brand-logo">N</div>
+          <span className="brand-name">Nexora Admin</span>
         </div>
         
         <nav className="admin-nav">

@@ -71,14 +71,16 @@
 .input-group {
   display: flex;
   border: 1px solid #ccc;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   height: 48px;
+  background-color: #ffffff; /* Explicitly set white background */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Add subtle shadow */
 }
 
 .input-icon-wrapper {
   width: 48px;
-  background-color: #e0e0e0;
+  background-color: #f8f9fa; /* Lighter grey for better contrast */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,10 +94,11 @@
   font-size: 16px;
   outline: none;
   color: #333;
+  background-color: #ffffff; /* Explicitly set white background */
 }
 
 .kiosk-input::placeholder {
-  color: #999;
+  color: #888;
 }
 
 .btn-kiosk-start {

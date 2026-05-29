@@ -1,28 +1,79 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import '@tensorflow/tfjs';
 import { playViolationWarning } from '../utils/audioUtils';
+import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
+import './ProctoringEngine.css';
 
 const ProctoringEngine = ({ children, requireCamera = true }) => {
   const isElectron = /electron/i.test(navigator.userAgent);
   const [violations, setViolations] = useState([]);
+  const violationsRef = useRef([]);
   const [isFullscreen, setIsFullscreen] = useState(isElectron || !!document.fullscreenElement);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraMinimized, setIsCameraMinimized] = useState(false);
   const [activeWarning, setActiveWarning] = useState(null); // Custom alert overlay
   const [proctoringStatus, setProctoringStatus] = useState('Monitoring Active');
+  const [violationLevel, setViolationLevel] = useState(null); // 'warning', 'severe', null
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanComplete, setScanComplete] = useState(false);
+  const [showPreCrimeWarning, setShowPreCrimeWarning] = useState(false);
+  const lastMousePos = useRef({ y: 0, time: Date.now() });
   const videoRef = useRef(null);
 
-  const MAX_VIOLATIONS = 3;
+  // Forensic Watermark Info
+  const candidateName = sessionStorage.getItem('candidateName') || 'Candidate';
+  const sessionId = useMemo(() => Math.random().toString(36).substring(2, 10).toUpperCase(), []);
+  const dateStr = new Date().toISOString().split('T')[0];
+  const watermarkText = `${candidateName} • ${sessionId} • ${dateStr} • NEXORA SECURE`;
+  
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="13" fill="#000000" opacity="1" transform="rotate(-30 150 100)">${watermarkText}</text></svg>`;
+  const svgWatermark = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+
+  // --- PRE-CRIME MOUSE TRACKING ---
+  useEffect(() => {
+    let warningTimeout;
+    const handleMouseMove = (e) => {
+      const now = Date.now();
+      const dt = now - lastMousePos.current.time;
+      
+      if (dt > 25) { 
+        const dy = e.clientY - lastMousePos.current.y;
+        const velocityY = dy / dt; // Negative is UP
+        
+        // Rapid upward movement towards the top URL bar/tabs area
+        if (velocityY < -1.2 && e.clientY < 80) {
+          setShowPreCrimeWarning(true);
+          
+          clearTimeout(warningTimeout);
+          warningTimeout = setTimeout(() => {
+            setShowPreCrimeWarning(false);
+          }, 3000); 
+        }
+        
+        lastMousePos.current = { y: e.clientY, time: now };
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(warningTimeout);
+    };
+  }, []);
+  // --------------------------------
+
+  // --- MOBILE ---
+
+  const MAX_VIOLATIONS = 10; // Increased strikes as requested
+
 
   const addViolation = (type, message, alertText = null) => {
-    let latestViolations = [];
-    setViolations(prev => {
-      const newViolations = [...prev, { type, message, timestamp: new Date() }];
-      latestViolations = newViolations;
-      return newViolations;
-    });
+    const newViolation = { type, message, timestamp: new Date() };
+    const latestViolations = [...violationsRef.current, newViolation];
+    violationsRef.current = latestViolations;
+    setViolations(latestViolations);
 
     // Synchronously save to session storage so the final strike isn't lost if we navigate immediately
     sessionStorage.setItem('violations', JSON.stringify(latestViolations));
@@ -30,7 +81,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
     if (type === 'ELECTRONIC_DEVICE') {
       window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Severe violation: Mobile phone or electronic device detected.', violations: latestViolations } }));
     } else if (latestViolations.length >= MAX_VIOLATIONS) {
-      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Excessive violations threshold reached (3 strikes).', violations: latestViolations } }));
+      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: `Excessive violations threshold reached (${MAX_VIOLATIONS} strikes).`, violations: latestViolations } }));
     }
     console.warn(`PROCTORING VIOLATION: ${message}`);
     if (
@@ -40,20 +91,25 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
       type === 'MULTIPLE_FACES' ||
       type === 'NO_FACE_DETECTED' ||
       type === 'ELECTRONIC_DEVICE' ||
-      type === 'WINDOW_BLUR'
+      type === 'WINDOW_BLUR' ||
+      type === 'GAZE_AWAY' ||
+      type === 'LIVENESS_FAILED'
     ) {
       playViolationWarning();
     }
     
     if (alertText) {
+      const strikeCount = latestViolations.length;
       setActiveWarning(alertText);
-      setProctoringStatus(`Warning: ${type}`);
+      setProctoringStatus(`Strike ${strikeCount}/${MAX_VIOLATIONS} - ${type}`);
+      setViolationLevel(type === 'MULTIPLE_FACES' || type === 'NO_FACE_DETECTED' || type === 'ELECTRONIC_DEVICE' || type === 'TAB_SWITCH' || type === 'WINDOW_BLUR' || type === 'LIVENESS_FAILED' ? 'severe' : 'warning');
       
       // Only auto-dismiss minor violations. Tab switching and blurring should be manually acknowledged.
       if (type !== 'TAB_SWITCH' && type !== 'WINDOW_BLUR') {
         setTimeout(() => {
           setActiveWarning(null);
           setProctoringStatus('Monitoring Active');
+          setViolationLevel(null);
         }, 5000);
       }
     }
@@ -66,6 +122,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
   const dismissWarning = () => {
     setActiveWarning(null);
     setProctoringStatus('Monitoring Active');
+    setViolationLevel(null);
     
     // Automatically enforce fullscreen if they dropped out of it, saving them a second click
     if (!isElectron && !document.fullscreenElement) {
@@ -239,10 +296,13 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
       // Face Detection
       let missingFaceCount = 0;
       let multipleFaceCount = 0;
+      let gazeAwayCount = 0;
+      let lastBlinkTime = Date.now();
       
       if (videoRef.current) {
         faceInterval = setInterval(async () => {
           if (videoRef.current && videoRef.current.readyState === 4) {
+            
             try {
               // 1. Electronic Device Detection (Phones/Laptops)
               if (window.cocoSsdModel) {
@@ -256,16 +316,16 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
                 }
               }
 
-              // 2. Face Detection using TinyFaceDetector
+              // 2. Face Detection using TinyFaceDetector with Landmarks
               const detections = await faceapi.detectAllFaces(
                 videoRef.current, 
-                new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.3 })
-              );
+                new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.15 })
+              ).withFaceLandmarks();
               
               if (detections.length === 0) {
                 missingFaceCount++;
-                if (missingFaceCount === 3) {
-                  // Only trigger violation exactly once at the 3-second mark
+                if (missingFaceCount === 4) {
+                  // Only trigger violation exactly once at the 4-second mark
                   addViolation('NO_FACE_DETECTED', 'Candidate face is not visible in the camera frame.', 'WARNING: Your face is not visible. Please return to the frame immediately.');
                 }
               } else {
@@ -278,6 +338,53 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
                   }
                 } else {
                   multipleFaceCount = 0;
+                  
+                  // LIVENESS & GAZE TRACKING (Single Face)
+                  const landmarks = detections[0].landmarks;
+                  
+                  // 2A. Gaze Tracking (Yaw Approximation)
+                  const nose = landmarks.getNose();
+                  const jawOutline = landmarks.getJawOutline();
+                  const distLeft = nose[3].x - jawOutline[0].x;
+                  const distRight = jawOutline[16].x - nose[3].x;
+                  const yawRatio = distLeft / distRight;
+                  
+                  // Normal ratio is ~1. > 2.5 means looking far left, < 0.4 means far right
+                  if (yawRatio > 2.5 || yawRatio < 0.4) {
+                    gazeAwayCount++;
+                    if (gazeAwayCount === 5) { // 5 consecutive seconds looking away
+                      addViolation('GAZE_AWAY', 'Candidate is consistently looking away from the screen.', 'WARNING: Keep your eyes focused on the screen.');
+                    }
+                  } else {
+                    gazeAwayCount = 0;
+                  }
+                  
+                  // 2B. Liveness Detection (Blink / Eye Aspect Ratio)
+                  const leftEye = landmarks.getLeftEye();
+                  const rightEye = landmarks.getRightEye();
+                  
+                  const getDist = (pt1, pt2) => Math.sqrt(Math.pow(pt1.x - pt2.x, 2) + Math.pow(pt1.y - pt2.y, 2));
+                  const calcEAR = (eye) => {
+                    const v1 = getDist(eye[1], eye[5]);
+                    const v2 = getDist(eye[2], eye[4]);
+                    const h = getDist(eye[0], eye[3]);
+                    return (v1 + v2) / (2.0 * h);
+                  };
+                  
+                  const avgEAR = (calcEAR(leftEye) + calcEAR(rightEye)) / 2;
+                  
+                  if (avgEAR < 0.22) {
+                    lastBlinkTime = Date.now(); // Blink registered!
+                  }
+                  
+                  // If no blink detected for 60 seconds, flag as possible printed photo
+                  if (Date.now() - lastBlinkTime > 60000) {
+                    if (!window._lastLivenessWarnTime || Date.now() - window._lastLivenessWarnTime > 60000) {
+                      addViolation('LIVENESS_FAILED', 'No natural eye movement/blinking detected. Possible photo spoofing.', 'WARNING: Liveness check failed. Ensure your face is clearly visible.');
+                      window._lastLivenessWarnTime = Date.now();
+                      lastBlinkTime = Date.now(); // Reset to prevent spam
+                    }
+                  }
                 }
               }
             } catch (e) {
@@ -296,6 +403,17 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
             videoRef.current.srcObject = stream;
             setIsCameraActive(true);
             
+            // Start biometric scanning phase
+            setIsScanning(true);
+            setTimeout(() => {
+              setIsScanning(false);
+              setScanComplete(true);
+              setTimeout(() => {
+                setScanComplete(false);
+                startTracking(stream); // Start tracking only after verification is done
+              }, 2500);
+            }, 3000);
+
             // Listen for hardware disconnects (e.g. unplugging external webcam)
             const videoTrack = stream.getVideoTracks()[0];
             if (videoTrack) {
@@ -304,8 +422,6 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
                 setIsCameraActive(false);
               };
             }
-
-            startTracking(stream);
           }
         })
         .catch((err) => {
@@ -340,6 +456,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
       try {
         console.log("Loading AI models (Face API & COCO-SSD)...");
         await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
         
         window.cocoSsdModel = await cocoSsd.load();
         
@@ -367,71 +484,83 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
 
   return (
     <>
+      <div 
+        className="forensic-watermark" 
+        style={{ backgroundImage: `url("${svgWatermark}")` }}
+      />
+
+      
+      {/* Pre-Crime Warning Overlay */}
+      {showPreCrimeWarning && (
+        <div className="pre-crime-overlay">
+          <div className="pre-crime-modal">
+            <AlertTriangle size={48} color="#f59e0b" style={{ margin: '0 auto 15px auto', display: 'block' }} />
+            <h3>Focus Warning</h3>
+            <p>Please keep your mouse within the test area.</p>
+          </div>
+        </div>
+      )}
+
       {/* Massive Full-Screen Violation Lock removed as requested */}
 
       {/* Floating Proctoring Camera Widget */}
       {requireCamera && (
-        <div 
-          style={{ 
-            position: 'fixed', 
-          bottom: '20px', 
-          right: '20px', 
-          zIndex: 99999,
-          display: isCameraActive ? 'block' : 'none',
-          backgroundColor: '#1e293b',
-          borderRadius: '6px',
-          overflow: 'hidden',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-          border: '1px solid #334155'
-        }}
-      >
-        <div 
-          style={{ 
-            backgroundColor: '#0f172a', 
-            color: 'white', 
-            padding: '8px 12px', 
-            fontSize: '12px', 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            cursor: 'pointer',
-            userSelect: 'none',
-            fontWeight: '500'
-          }}
-          onClick={() => setIsCameraMinimized(!isCameraMinimized)}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
-            Live Proctoring
-          </span>
-          <span style={{ fontSize: '16px', lineHeight: '1' }}>{isCameraMinimized ? '+' : '−'}</span>
-        </div>
-        <video 
-          ref={videoRef} 
-          autoPlay 
-          muted 
-          playsInline
-          style={{ 
-            width: '200px', 
-            height: isCameraMinimized ? '0px' : 'auto', 
-            display: isCameraMinimized ? 'none' : 'block',
-            transform: 'scaleX(-1)', // Mirror effect
-            backgroundColor: '#000'
-          }}
-        />
-        {!isCameraMinimized && (
-          <div style={{ 
-            backgroundColor: activeWarning ? '#7f1d1d' : '#064e3b', 
-            color: activeWarning ? '#fca5a5' : '#6ee7b7', 
-            padding: '4px 12px', 
-            fontSize: '11px', 
-            textAlign: 'center',
-            borderTop: '1px solid #1e293b'
-          }}>
-            {proctoringStatus}
+        <div className="proctoring-hud-container" style={{ display: isCameraActive ? 'flex' : 'none' }}>
+          
+          <div className={`floating-orb ${isCameraMinimized ? 'minimized' : ''} ${violationLevel === 'severe' ? 'violation-severe' : violationLevel === 'warning' ? 'violation-warning' : ''}`}>
+            
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              muted 
+              playsInline
+            />
+            
+            {isScanning && !isCameraMinimized && (
+              <div className="biometric-scanner">
+                <div className="scan-line"></div>
+                <span>Scanning...</span>
+              </div>
+            )}
+            
+            {scanComplete && !isCameraMinimized && (
+              <div className="environment-verified">
+                <ShieldCheck size={48} />
+              </div>
+            )}
+
+            <div className="hud-controls" onClick={() => setIsCameraMinimized(!isCameraMinimized)}>
+              {isCameraMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+            </div>
           </div>
-        )}
-      </div>
+
+
+
+          {activeWarning && !isCameraMinimized && (
+             <div className={`proctoring-toast ${violationLevel === 'severe' ? 'severe' : 'warning'}`}>
+               <AlertTriangle size={24} color={violationLevel === 'severe' ? '#ef4444' : '#f59e0b'} style={{ flexShrink: 0 }} />
+               <div>
+                 <strong style={{ display: 'block', marginBottom: '4px' }}>{proctoringStatus}</strong>
+                 <div style={{ fontSize: '13px', opacity: 0.9 }}>{activeWarning}</div>
+                 {(activeWarning.includes('WARNING: Navigating') || activeWarning.includes('WARNING: You must remain')) && (
+                   <button 
+                     onClick={dismissWarning}
+                     style={{
+                       marginTop: '10px', padding: '6px 12px', backgroundColor: 'rgba(255,255,255,0.15)', 
+                       border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', color: 'white', cursor: 'pointer', fontSize: '12px',
+                       fontWeight: '500', transition: 'all 0.2s', width: '100%'
+                     }}
+                     onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.25)'}
+                     onMouseOut={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.15)'}
+                   >
+                     Acknowledge & Return
+                   </button>
+                 )}
+               </div>
+             </div>
+          )}
+
+        </div>
       )}
 
       {!isFullscreen ? (

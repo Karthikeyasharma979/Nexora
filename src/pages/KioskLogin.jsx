@@ -44,7 +44,7 @@ const KioskLogin = () => {
     setSystemChecks(prev => ({ ...prev, os: { status: 'ok', value: osName } }));
 
     // Browser Detection (Electron uses Chrome)
-    setSystemChecks(prev => ({ ...prev, browser: { status: 'ok', value: 'Secure Browser Environment' } }));
+    setSystemChecks(prev => ({ ...prev, browser: { status: 'ok', value: 'Secure Browser' } }));
 
     // Screen Size
     const screenWidth = window.screen.width;

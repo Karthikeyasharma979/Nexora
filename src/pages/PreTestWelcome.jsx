@@ -79,7 +79,7 @@ const PreTestWelcome = () => {
       {/* Top Logo */}
       <div className="pt-logo-header">
         <div className="pt-mercer-logo">
-          <strong>Nexora</strong> | sync
+          <strong>Nexora</strong>
         </div>
       </div>
 
@@ -180,7 +180,7 @@ const PreTestWelcome = () => {
           <a href="#">Terms of Services</a>
         </div>
         <div className="pt-footer-logo">
-          Powered By <strong>Nexora | sync</strong>
+          Powered By <strong>Nexora</strong>
         </div>
       </footer>
 

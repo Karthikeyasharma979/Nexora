@@ -1,9 +1,20 @@
-const API_URL = 'https://nexora-t8dh.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'; // Pointing to deployed backend server
+
+// Helper to get admin headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('admin_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
 
 // Helper to get all tests asynchronously
 export const getAllTests = async () => {
   try {
-    const response = await fetch(`${API_URL}/tests`);
+    const response = await fetch(`${API_URL}/tests`, {
+      headers: getAuthHeaders()
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -21,9 +32,7 @@ export const saveTest = async (test) => {
   try {
     const response = await fetch(`${API_URL}/tests`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(test)
     });
     if (!response.ok) {
@@ -45,7 +54,9 @@ export const saveTest = async (test) => {
 
 export const getAllReports = async () => {
   try {
-    const response = await fetch(`${API_URL}/reports`);
+    const response = await fetch(`${API_URL}/reports`, {
+      headers: getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (error) {
@@ -77,9 +88,7 @@ export const updateTest = async (testId, test) => {
   try {
     const response = await fetch(`${API_URL}/tests/${testId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(test)
     });
     if (!response.ok) {
@@ -101,10 +110,11 @@ export const updateTest = async (testId, test) => {
   }
 };
 
-// Helper to get a single test by ID asynchronously
+// Helper to get a single test by ID asynchronously (PUBLIC route)
 export const getTestById = async (testId) => {
   try {
     const response = await fetch(`${API_URL}/tests/${testId}`);
+    
     if (!response.ok) {
       if (response.status === 404) return null;
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -115,7 +125,10 @@ export const getTestById = async (testId) => {
     // Fallback to local storage if API is down
     const data = localStorage.getItem('mettl_clone_tests');
     const tests = data ? JSON.parse(data) : [];
-    return tests.find(t => t.id === testId) || null;
+    const localTest = tests.find(t => t.id === testId);
+    if (localTest) return localTest;
+    
+    throw error; // Throw the actual error so the UI shows "Fetch Error" and not "Test not found"
   }
 };
 
@@ -123,7 +136,8 @@ export const getTestById = async (testId) => {
 export const deleteTest = async (testId) => {
   try {
     const response = await fetch(`${API_URL}/tests/${testId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
     if (!response.ok && response.status !== 404) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -138,6 +152,27 @@ export const deleteTest = async (testId) => {
     localStorage.setItem('mettl_clone_tests', JSON.stringify(tests));
     return true;
   }
+};
+
+// --- Invite APIs ---
+export const generateInviteLink = async (testId, candidateEmail) => {
+  const response = await fetch(`${API_URL}/invite/generate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ testId, candidateEmail })
+  });
+  if (!response.ok) throw new Error('Failed to generate invite');
+  return await response.json();
+};
+
+export const sendEmailInvite = async (testId, testName, candidateEmail) => {
+  const response = await fetch(`${API_URL}/invite/send-email`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ testId, testName, candidateEmail })
+  });
+  if (!response.ok) throw new Error('Failed to send email');
+  return await response.json();
 };
 
 // Keep initializeDB as noop or async noop to keep compatibility

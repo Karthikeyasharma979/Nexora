@@ -145,8 +145,24 @@ const Diagnostics = () => {
       const isCaptureValid = testDetails.requireCamera === false || (faceImageSrc && idImageSrc);
       
       if (isDetailsValid && isCaptureValid) {
-        // Move to Monitored Session Gateway
-        setCurrentPhase(3);
+        const isElectron = window.navigator.userAgent.toLowerCase().includes('electron');
+        const requireSEB = testDetails.requireSEB !== false; // Default true
+
+        // Save registration details
+        sessionStorage.setItem('candidateName', candidateName.trim());
+        sessionStorage.setItem('candidateEmail', candidateEmail.trim());
+        
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+        }
+
+        if (isElectron || !requireSEB) {
+          // If we are in the Secure Browser, OR the test doesn't require it, go straight to the test
+          navigate(`/test/${testId}`);
+        } else {
+          // Move to Monitored Session Gateway for web users to launch the app
+          setCurrentPhase(3);
+        }
       }
     }
   };
@@ -163,7 +179,12 @@ const Diagnostics = () => {
     }
     
     // Launch the custom protocol to trigger the Secure Browser prompt
-    window.location.href = `nexora://test/${testId}`;
+    const isElectron = window.navigator.userAgent.toLowerCase().includes('electron');
+    if (isElectron) {
+      navigate(`/test/${testId}`);
+    } else {
+      window.location.href = `nexora://test/${testId}`;
+    }
   };
 
   const handleWebFallback = () => {
@@ -267,7 +288,7 @@ const Diagnostics = () => {
     return (
       <div className="diag-fullscreen-gateway">
           <div className="diag-monitor-modal-container">
-            <div className="diag-monitor-bg-text">NEXORA | sync</div>
+            <div className="diag-monitor-bg-text">NEXORA</div>
             <div className="diag-monitor-modal" style={{ maxWidth: '600px' }}>
               <div className="diag-monitor-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px 30px' }}>
                 <h3 style={{ fontSize: '18px', color: '#1e293b' }}>Launch Nexora Secure Browser</h3>
@@ -310,7 +331,7 @@ const Diagnostics = () => {
       {/* Header */}
       <header className="diag-header">
         <div className="diag-logo">
-          <strong>Nexora</strong> | sync
+          <strong>Nexora</strong>
         </div>
       </header>
 
@@ -673,7 +694,7 @@ const Diagnostics = () => {
           Facing technical difficulties taking this test? : <a href="#">Chat Now</a> Or <a href="#">Call Now</a>
         </div>
         <div className="diag-footer-right">
-          Powered By <strong>Nexora | sync</strong>
+          Powered By <strong>Nexora</strong>
         </div>
       </footer>
 

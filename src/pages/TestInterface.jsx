@@ -31,7 +31,50 @@ const TestInterface = () => {
     getTestById(testId)
       .then(test => {
         if (test) {
-          setTestDetails(test);
+          // --- Cryptographic Shuffling Logic ---
+          const shuffleArray = (array) => {
+            const newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+          };
+
+          const randomizedTest = { ...test };
+          
+          // 1. Shuffle options for each question & track new correctOption index
+          randomizedTest.questions = randomizedTest.questions.map(q => {
+            const originalOptions = [...q.options];
+            const correctText = originalOptions[q.correctOption];
+            
+            const shuffledOptions = shuffleArray(originalOptions);
+            const newCorrectOption = shuffledOptions.findIndex(opt => opt === correctText);
+            
+            return {
+              ...q,
+              options: shuffledOptions,
+              correctOption: newCorrectOption
+            };
+          });
+
+          // 2. Shuffle questions within their respective sections
+          const sectionsMap = new Map();
+          randomizedTest.questions.forEach(q => {
+            const sName = q.sectionName || 'Section 1';
+            if (!sectionsMap.has(sName)) sectionsMap.set(sName, []);
+            sectionsMap.get(sName).push(q);
+          });
+
+          const finalQuestions = [];
+          for (let qs of sectionsMap.values()) {
+            finalQuestions.push(...shuffleArray(qs));
+          }
+
+          randomizedTest.questions = finalQuestions;
+          // --- End Shuffling ---
+
+          setTestDetails(randomizedTest);
           setTimeRemaining(test.duration);
         } else {
           setErrorReason(`Test not found for ID: "${testId}"`);
@@ -76,11 +119,13 @@ const TestInterface = () => {
   const handleSubmitExam = async (status = 'Completed', terminationReason = null) => {
     if (!testDetails) return;
     let correctCount = 0;
+    
     testDetails.questions.forEach(q => {
       if (answers[q.id] === q.correctOption) {
         correctCount++;
       }
     });
+    
     const percentage = ((correctCount / testDetails.questions.length) * 100).toFixed(2);
     const candidateName = sessionStorage.getItem('candidateName') || 'Harry';
     const scoreStr = `${correctCount}/${testDetails.questions.length}`;
@@ -150,6 +195,7 @@ const TestInterface = () => {
 
   if (!testDetails) return <div style={{padding: '50px', textAlign: 'center'}}>Loading test environment...</div>;
 
+
   const currentQ = testDetails.questions[currentQuestionIdx];
   const attemptedCount = Object.keys(answers).length;
   const revisitCount = Object.keys(revisited).filter(k => revisited[k]).length;
@@ -191,7 +237,7 @@ const TestInterface = () => {
       <header className="ti-header">
         <div className="ti-header-left">
           <div className="ti-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
-            <ShieldCheck size={24} style={{ color: '#4ade80' }} /> Nexora | sync
+            <ShieldCheck size={24} style={{ color: '#4ade80' }} /> Nexora
           </div>
           <div className="ti-user-info">
             <span className="ti-user-name">{sessionStorage.getItem('candidateName') || 'Harry'}</span>
@@ -419,7 +465,7 @@ const TestInterface = () => {
       {/* Footer */}
       <footer className="ti-footer">
         <div className="ti-footer-left">
-          Mettl Online Assessment © 2021-2031
+          Nexora Online Assessment © 2021-2031
           <Wifi size={14} className="ml-4 mr-2 text-success" style={{ color: '#28a745' }} />
           <span className="ti-recorded-tag">
             <span className="recording-dot"></span> Recorded Session
@@ -429,7 +475,7 @@ const TestInterface = () => {
           Need Help? Contact us: 🇺🇸 +1 (800) 265-6038 🇮🇳 +91 80471-89190
         </div>
         <div className="ti-footer-right">
-          Powered By <strong>Nexora | sync</strong>
+          Powered By <strong>Nexora</strong>
         </div>
       </footer>
 

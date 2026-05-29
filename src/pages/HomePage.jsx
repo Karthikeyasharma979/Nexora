@@ -48,7 +48,7 @@ const HomePage = () => {
         <div className="nav-brand">
           <ShieldCheck size={28} className="text-blue-500" style={{ color: '#3b82f6' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Nexora <span style={{ color: '#60a5fa' }}>| sync</span>
+            Nexora
           </span>
         </div>
         

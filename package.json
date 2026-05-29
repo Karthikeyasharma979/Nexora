@@ -1,13 +1,13 @@
 {
-  "name": "new-folder--7-",
+  "name": "nexora-secure-browser",
   "description": "Nexora Secure Browser",
   "author": "Nexora",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "server": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
@@ -22,12 +22,18 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "jsqr": "^1.4.0",
     "lucide-react": "^1.16.0",
     "mongoose": "^9.6.2",
+    "nodemailer": "^8.0.9",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^7.15.1"
+    "react-router-dom": "^7.15.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
