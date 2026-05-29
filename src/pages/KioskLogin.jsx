@@ -114,7 +114,25 @@ const KioskLogin = () => {
     setError(null);
 
     try {
-      const test = await getTestById(accessToken.trim());
+      let actualTestId = accessToken.trim();
+      let isJwtToken = actualTestId.length > 50 && actualTestId.includes('.'); // Simple JWT heuristic
+      
+      // If the user pasted the long JWT token instead of the short test ID
+      if (isJwtToken) {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${API_URL}/invite/verify/${actualTestId}`);
+        if (response.ok) {
+          const data = await response.json();
+          actualTestId = data.testId;
+          sessionStorage.setItem('secure_invite_token', actualTestId);
+        } else {
+          setError('Invalid or Expired Access Token.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const test = await getTestById(actualTestId);
       if (test) {
         const now = new Date();
         if (test.startTime && now < new Date(test.startTime)) {
@@ -132,6 +150,7 @@ const KioskLogin = () => {
         setError('Invalid Access Token. Test not found.');
       }
     } catch (err) {
+      console.error(err);
       setError('Failed to verify token. Please check your connection.');
     } finally {
       setLoading(false);

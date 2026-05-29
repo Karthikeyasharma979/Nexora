@@ -269,14 +269,14 @@ const AdminDashboard = () => {
 
   // Generate Secure Link (Not email, just copy to clipboard)
   const handleGenerateSecureLink = async (testId) => {
-    const dummyEmail = prompt("Enter a candidate email to map this link to:");
+    const dummyEmail = prompt("Enter a candidate email to map this token to (for tracking):", "guest@example.com");
     if (!dummyEmail) return;
     try {
       const data = await generateInviteLink(testId, dummyEmail);
-      const secureLink = `${window.location.origin}/#/invite/${data.token}`;
-      copyToClipboard(secureLink);
+      navigator.clipboard.writeText(data.token);
+      alert('Token copied to clipboard!\n\nCandidates can paste this directly into the Kiosk App.');
     } catch(e) {
-      alert('Error generating secure link.');
+      alert('Error generating secure token.');
     }
   };
 

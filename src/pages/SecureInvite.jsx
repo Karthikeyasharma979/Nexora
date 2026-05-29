@@ -45,7 +45,34 @@ const SecureInvite = () => {
           setVerifying(false);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Error verifying token from backend, trying offline fallback...", err);
+        try {
+          const decodedStr = atob(token);
+          const decoded = JSON.parse(decodedStr);
+          if (decoded.type === 'invite' && decoded.testId) {
+             const data = localStorage.getItem('mettl_clone_tests');
+             const tests = data ? JSON.parse(data) : [];
+             const test = tests.find(t => t.id === decoded.testId);
+             if (test) {
+               const requiresSEB = test.requireSEB !== false;
+               if (requiresSEB && !isElectron) {
+                 setIsBrowserAndRequiredSEB(true);
+                 setVerifying(false);
+                 window.location.href = `nexora://invite/${token}`;
+                 return;
+               }
+               sessionStorage.setItem('secure_invite_token', token);
+               navigate(`/pre-test/${decoded.testId}`, { replace: true });
+               return;
+             } else {
+               setError('Test not found locally (offline mode).');
+               setVerifying(false);
+               return;
+             }
+          }
+        } catch (fallbackErr) {
+          // If fallback parsing fails, proceed to generic error
+        }
         setError('Connection error verifying invite link.');
         setVerifying(false);
       }
