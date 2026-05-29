@@ -461,13 +461,12 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
         window.cocoSsdModel = await cocoSsd.load();
         
         console.log("AI models loaded successfully");
-        startVideo();
       } catch (e) {
-        console.warn("Failed to load AI models. Starting camera anyway.", e);
-        startVideo();
+        console.warn("Failed to load AI models. Some proctoring features may be degraded.", e);
       }
     };
 
+    startVideo();
     loadModels();
 
     return () => {

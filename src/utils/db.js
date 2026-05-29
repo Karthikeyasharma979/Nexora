@@ -183,8 +183,7 @@ export const sendEmailInvite = async (testId, testName, candidateEmail) => {
     return await response.json();
   } catch (error) {
     console.error("Error sending email from backend:", error);
-    // Simulating email success if backend is offline
-    return { message: "Simulated email success (Backend offline)" };
+    throw error;
   }
 };
 

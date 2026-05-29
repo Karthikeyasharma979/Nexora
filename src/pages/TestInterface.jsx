@@ -75,7 +75,7 @@ const TestInterface = () => {
           // --- End Shuffling ---
 
           setTestDetails(randomizedTest);
-          setTimeRemaining(test.duration);
+          setTimeRemaining(test.duration || 3600);
         } else {
           setErrorReason(`Test not found for ID: "${testId}"`);
         }

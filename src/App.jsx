@@ -35,8 +35,8 @@ function App() {
         <Route path="/invite/:token" element={<SecureInvite />} />
         
         {/* Candidate Routes */}
-        <Route element={<TestLayout />}>
-          <Route path="/test/:testId" element={<TestInterface />} />
+        <Route path="/test/:testId" element={<TestLayout />}>
+          <Route index element={<TestInterface />} />
         </Route>
         
         {/* Post-Test Route */}

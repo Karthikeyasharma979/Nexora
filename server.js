@@ -410,7 +410,8 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
       { expiresIn: '7d' }
     );
     const secureLink = `nexora://invite/${token}`;
-    const fallbackLink = `http://localhost:5173/#/invite/${token}`; // For dev
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const fallbackLink = `${frontendUrl}/#/invite/${token}`;
 
     // Setup Nodemailer transporter
     const transporter = nodemailer.createTransport({
