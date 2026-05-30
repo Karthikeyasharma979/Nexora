@@ -447,7 +447,7 @@ app.get('/api/invite/verify/:token', async (req, res) => {
 
 // Send Email Invite (Admin Only)
 app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
-  const { testId, testName, candidateEmail, format } = req.body;
+  const { testId, testName, candidateEmail, format, origin } = req.body;
   if (!testId || !candidateEmail) {
     return res.status(400).json({ error: 'Missing testId or candidateEmail' });
   }
@@ -460,7 +460,7 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
       { expiresIn: '7d' }
     );
     const secureLink = `nexora://invite/${token}`;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = origin || process.env.FRONTEND_URL || 'http://localhost:5173';
     const fallbackLink = `${frontendUrl}/#/invite/${token}`;
 
     // Setup Nodemailer transporter

@@ -194,7 +194,7 @@ export const sendEmailInvite = async (testId, testName, candidateEmail, format =
     const response = await fetch(`${API_URL}/invite/send-email`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ testId, testName, candidateEmail, format })
+      body: JSON.stringify({ testId, testName, candidateEmail, format, origin: window.location.origin })
     });
     if (!response.ok) throw new Error('Failed to send email');
     return await response.json();
