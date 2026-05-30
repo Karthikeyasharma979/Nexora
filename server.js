@@ -511,7 +511,7 @@ ${format === 'link' ? `
             <p style="margin-top: 30px;">The assessment window is now open. To begin your assessment, please open the <strong>Nexora Secure Browser</strong> on your computer and enter the following Access Key:</p>
             
             <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <span style="font-family: monospace; font-size: 14px; color: #0f172a; word-break: break-all;">${token}</span>
+              <span style="font-family: monospace; font-size: 14px; color: #0f172a; word-break: break-all;">${testId}</span>
             </div>
             
             <p style="font-size: 12px; color: #666; margin-top: 5px;">If you do not have the application installed, please contact your administrator for the installer.</p>
