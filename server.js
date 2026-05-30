@@ -447,7 +447,7 @@ app.get('/api/invite/verify/:token', async (req, res) => {
 
 // Send Email Invite (Admin Only)
 app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
-  const { testId, testName, candidateEmail } = req.body;
+  const { testId, testName, candidateEmail, format } = req.body;
   if (!testId || !candidateEmail) {
     return res.status(400).json({ error: 'Missing testId or candidateEmail' });
   }
@@ -499,6 +499,15 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
               </ul>
             </div>
 
+${format === 'link' ? `
+            <p style="margin-top: 30px;">The assessment window is now open. To begin your assessment, please click the secure link below:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${fallbackLink}" style="background-color: #00b4d8; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Start Assessment</a>
+            </div>
+            
+            <p style="font-size: 12px; color: #666; margin-top: 15px;">If the button does not work, copy and paste this link into your browser: <br/><a href="${fallbackLink}" style="color: #00b4d8; word-break: break-all;">${fallbackLink}</a></p>
+` : `
             <p style="margin-top: 30px;">The assessment window is now open. To begin your assessment, please open the <strong>Nexora Secure Browser</strong> on your computer and enter the following Access Key:</p>
             
             <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
@@ -506,7 +515,7 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
             </div>
             
             <p style="font-size: 12px; color: #666; margin-top: 5px;">If you do not have the application installed, please contact your administrator for the installer.</p>
-            
+`}
             <p style="margin-top: 40px;">Wishing you all the best for the assessment!</p>
             <p>Regards,<br/><strong>Talent Acquisition Team</strong></p>
           </div>

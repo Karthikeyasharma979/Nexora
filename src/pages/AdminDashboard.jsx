@@ -38,6 +38,7 @@ const AdminDashboard = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [emailFormat, setEmailFormat] = useState('link');
 
   const handleBulkParse = () => {
     if (!bulkText.trim()) {
@@ -239,6 +240,7 @@ const AdminDashboard = () => {
     setEmailTestName(test.name);
     setCandidateEmail('');
     setEmailError('');
+    setEmailFormat('link');
     setEmailSuccess(false);
     setIsEmailModalOpen(true);
   };
@@ -256,7 +258,7 @@ const AdminDashboard = () => {
     setEmailError('');
     
     try {
-      await sendEmailInvite(emailTestId, emailTestName, candidateEmail);
+      await sendEmailInvite(emailTestId, emailTestName, candidateEmail, emailFormat);
       setEmailSuccess(true);
       setTimeout(() => closeEmailModal(), 2000);
     } catch (err) {
@@ -267,14 +269,14 @@ const AdminDashboard = () => {
     }
   };
 
-  // Generate Secure Link (Not email, just copy to clipboard)
   const handleGenerateSecureLink = async (testId) => {
     const dummyEmail = prompt("Enter a candidate email to map this token to (for tracking):", "guest@example.com");
     if (!dummyEmail) return;
     try {
       const data = await generateInviteLink(testId, dummyEmail);
-      navigator.clipboard.writeText(data.token);
-      alert('Token copied to clipboard!\n\nCandidates can paste this directly into the Kiosk App.');
+      const inviteLink = `${window.location.origin}/invite/${data.token}`;
+      navigator.clipboard.writeText(inviteLink);
+      alert('Link copied to clipboard!\n\nCandidates can click this link to start the test.');
     } catch(e) {
       alert('Error generating secure token.');
     }
@@ -689,6 +691,32 @@ const AdminDashboard = () => {
                     required
                     autoFocus
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Format</label>
+                  <div style={{ display: 'flex', gap: '15px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <input 
+                        type="radio" 
+                        name="emailFormat" 
+                        value="link" 
+                        checked={emailFormat === 'link'} 
+                        onChange={() => setEmailFormat('link')} 
+                      />
+                      Direct Link
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <input 
+                        type="radio" 
+                        name="emailFormat" 
+                        value="token" 
+                        checked={emailFormat === 'token'} 
+                        onChange={() => setEmailFormat('token')} 
+                      />
+                      Access Token
+                    </label>
+                  </div>
                 </div>
                 
                 {emailError && <div className="error-alert">{emailError}</div>}
