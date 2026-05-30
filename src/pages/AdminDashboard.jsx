@@ -274,7 +274,7 @@ const AdminDashboard = () => {
     if (!dummyEmail) return;
     try {
       const data = await generateInviteLink(testId, dummyEmail);
-      const inviteLink = `${window.location.origin}/invite/${data.token}`;
+      const inviteLink = `${window.location.origin}/#/invite/${data.token}`;
       navigator.clipboard.writeText(inviteLink);
       alert('Link copied to clipboard!\n\nCandidates can click this link to start the test.');
     } catch(e) {
