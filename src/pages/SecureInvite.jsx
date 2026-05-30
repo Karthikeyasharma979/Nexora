@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Loader2, AlertTriangle, ExternalLink, ShieldCheck, Download } from 'lucide-react';
 
 const SecureInvite = () => {
   const { token } = useParams();
@@ -96,14 +96,29 @@ const SecureInvite = () => {
             <p style={{ margin: '0', fontSize: '13px', color: '#64748b' }}>If your browser asks for permission to open the application, please click <strong>"Open"</strong> or <strong>"Allow"</strong>.</p>
           </div>
           
-          <button 
-            onClick={() => window.location.href = `nexora://invite/${token}`}
-            style={{ backgroundColor: '#4f46e5', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'background-color 0.2s' }}
+          <a 
+            href={`nexora://invite/${token}`}
+            style={{ backgroundColor: '#4f46e5', color: 'white', textDecoration: 'none', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'background-color 0.2s' }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4338ca'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#4f46e5'}
           >
             Launch Secure Browser <ExternalLink size={18} />
-          </button>
+          </a>
+
+          <div style={{ marginTop: '30px', paddingTop: '25px', borderTop: '1px solid #e2e8f0' }}>
+            <p style={{ margin: '0 0 15px', fontSize: '14px', color: '#64748b' }}>Don't have the app installed?</p>
+            <a 
+              href="https://drive.google.com/file/d/1a8neyskcGHfm7md0ESZXtg1UOd3xgyJy/view?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ backgroundColor: 'transparent', color: '#00b4d8', border: '2px solid #00b4d8', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', margin: '0 auto', textDecoration: 'none' }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0, 180, 216, 0.1)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <Download size={16} /> Download Secure Browser
+            </a>
+            <p style={{ margin: '15px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Windows 10/11 • macOS 12+</p>
+          </div>
         </div>
       </div>
     );

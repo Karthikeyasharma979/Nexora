@@ -82,6 +82,23 @@ export const saveReport = async (reportData) => {
   }
 };
 
+export const saveDemoRequest = async (requestData) => {
+  try {
+    const response = await fetch(`${API_URL}/demo-requests`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData),
+    });
+    if (!response.ok) throw new Error('Failed to save demo request');
+    return await response.json();
+  } catch (error) {
+    console.error("Error saving demo request:", error);
+    return null;
+  }
+};
+
 
 // Helper to update a test asynchronously
 export const updateTest = async (testId, test) => {

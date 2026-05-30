@@ -8,13 +8,15 @@
 
 /* Header */
 .ti-header {
-  height: 60px;
-  background-color: var(--mettl-navy);
+  height: 70px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
   color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  z-index: 20;
 }
 
 .ti-header-left {
@@ -23,8 +25,9 @@
 }
 
 .ti-logo {
-  font-weight: bold;
-  font-size: 20px;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.5px;
   margin-right: 40px;
   display: flex;
   align-items: center;
@@ -72,53 +75,80 @@
 }
 
 .ti-btn-finish {
-  background-color: transparent;
-  border: 1px solid white;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border: none;
   color: white;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 .ti-btn-finish:hover {
-  background-color: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
 }
 
 /* Nav */
 .ti-nav {
-  height: 60px;
-  border-bottom: 1px solid var(--mettl-gray-border);
+  height: 70px;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 30px;
   justify-content: space-between;
-  background-color: var(--mettl-white);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
   z-index: 10;
 }
 
 .ti-section-dropdown {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
-  border: 1px solid var(--mettl-gray-border);
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  color: var(--mettl-text-primary);
+  color: #1e293b;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.ti-section-dropdown:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
 }
 
 .ti-pagination-wrapper {
   display: flex;
-  flex-direction: column;
   align-items: center;
   position: relative;
+  flex: 1;
+  margin: 0 20px;
+  overflow: hidden;
 }
 
 .ti-pagination {
   display: flex;
   align-items: center;
   gap: 0;
+  overflow-x: auto;
+  padding: 5px 0;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.ti-pagination::-webkit-scrollbar {
+  height: 6px;
+}
+.ti-pagination::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
 }
 
 .ti-page-btn {
@@ -136,28 +166,33 @@
 }
 
 .ti-page-num {
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--mettl-gray-border);
-  background: white;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  color: var(--mettl-blue);
-  border-right: none;
-}
-.ti-page-num:last-of-type {
-  border-right: 1px solid var(--mettl-gray-border);
+  color: #475569;
+  margin: 0 4px;
+  flex-shrink: 0; /* Prevent squishing */
+  transition: all 0.2s;
 }
 
 .ti-page-num.attempted {
-  background-color: #f1f5f9;
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
 }
 
 .ti-page-num.revisited {
-  border-bottom: 3px solid var(--mettl-warning);
+  background-color: #fef08a;
+  color: #854d0e;
+  border-color: #fde047;
 }
 
 .ti-page-num.skipped {
@@ -165,8 +200,11 @@
 }
 
 .ti-page-num.active {
-  border-top: 3px solid var(--mettl-blue);
-  font-weight: bold;
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
 }
 
 .ti-pagination .ti-filter-tools {
@@ -186,9 +224,12 @@
 }
 
 .ti-attempt-count {
-  font-size: 11px;
-  color: var(--mettl-text-secondary);
-  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 15px;
+  display: flex;
+  align-items: center;
 }
 
 .ti-nav-right {

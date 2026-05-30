@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Lock, ChevronRight } from 'lucide-react';
+import { ShieldCheck, Lock, ChevronRight, Home } from 'lucide-react';
 import './AdminLogin.css';
+import './HomePage.css';
 
 const AdminLogin = () => {
   const [password, setPassword] = useState('');
@@ -40,13 +41,19 @@ const AdminLogin = () => {
 
   return (
     <div className="admin-login-container">
-      <div className="admin-login-card">
+      <div className="cyber-grid-bg"></div>
+      
+      <button className="btn-back-home" onClick={() => navigate('/')}>
+        <Home size={18} /> Back to Home
+      </button>
+
+      <div className="admin-login-card animate-in">
         <div className="admin-login-header">
           <div className="admin-icon-wrapper">
-            <ShieldCheck size={40} color="#00b4d8" />
+            <ShieldCheck size={40} color="#d8b4fe" />
           </div>
-          <h2>Nexora Admin</h2>
-          <p>Enter your password to access the dashboard</p>
+          <h2 className="text-gradient">Nexora Admin</h2>
+          <p>Enter your credentials to access the secure portal</p>
         </div>
         
         <form onSubmit={handleLogin} className="admin-login-form">
@@ -55,6 +62,7 @@ const AdminLogin = () => {
             <input 
               type="password" 
               placeholder="Admin Password"
+              className="glass-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -64,7 +72,7 @@ const AdminLogin = () => {
           
           {error && <div className="admin-error-message">{error}</div>}
           
-          <button type="submit" className="admin-login-btn" disabled={loading}>
+          <button type="submit" className="admin-login-btn magnetic-btn" disabled={loading}>
             {loading ? 'Authenticating...' : 'Secure Login'} 
             {!loading && <ChevronRight size={18} />}
           </button>

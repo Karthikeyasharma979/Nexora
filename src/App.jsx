@@ -9,6 +9,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import TestCompleted from './pages/TestCompleted';
 import InvalidLink from './pages/InvalidLink';
 import HomePage from './pages/HomePage';
+import InteractiveDemoPage from './pages/InteractiveDemoPage';
+import FeaturesPage from './pages/FeaturesPage';
+import WorkflowPage from './pages/WorkflowPage';
+import RequestDemoPage from './pages/RequestDemoPage';
 import KioskLogin from './pages/KioskLogin';
 import AdminLogin from './pages/AdminLogin';
 import SecureInvite from './pages/SecureInvite';
@@ -23,6 +27,10 @@ function App() {
       <Routes>
         {/* Landing Page */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/demo" element={<InteractiveDemoPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/workflow" element={<WorkflowPage />} />
+        <Route path="/request-demo" element={<RequestDemoPage />} />
         
         {/* Kiosk Login Route */}
         <Route path="/kiosk-login" element={<KioskLogin />} />

@@ -285,14 +285,15 @@ const AdminDashboard = () => {
   const totalViolations = reports.reduce((acc, curr) => acc + (curr.violations?.length || 0), 0);
 
   return (
-    <div className="dashboard-container">
-      <div className="modern-tabs">
-        <button className={`modern-tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}><LayoutTemplate size={16} /> Overview</button>
-        <button className={`modern-tab ${activeTab === 'tests' ? 'active' : ''}`} onClick={() => setActiveTab('tests')}><ClipboardList size={16} /> Manage Tests</button>
-        <button className={`modern-tab ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}><Users size={16} /> Candidates</button>
-        <button className={`modern-tab ${activeTab === 'builder' ? 'active' : ''}`} onClick={() => setActiveTab('builder')}><Plus size={16} /> Test Builder</button>
-        <button className={`modern-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><Settings size={16} /> Settings</button>
-      </div>
+    <>
+      <div className="dashboard-container">
+        <div className="modern-tabs">
+          <button className={`modern-tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}><LayoutTemplate size={16} /> Overview</button>
+          <button className={`modern-tab ${activeTab === 'tests' ? 'active' : ''}`} onClick={() => setActiveTab('tests')}><ClipboardList size={16} /> Manage Tests</button>
+          <button className={`modern-tab ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}><Users size={16} /> Candidates</button>
+          <button className={`modern-tab ${activeTab === 'builder' ? 'active' : ''}`} onClick={() => setActiveTab('builder')}><Plus size={16} /> Test Builder</button>
+          <button className={`modern-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><Settings size={16} /> Settings</button>
+        </div>
 
       <div className="dashboard-content-area">
         {/* ... dashboard overview view ... */}
@@ -704,8 +705,8 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
-
-    </div>
+      </div>
+    </>
   );
 };
 

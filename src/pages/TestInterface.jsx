@@ -99,6 +99,14 @@ const TestInterface = () => {
       const qId = testDetails.questions[currentQuestionIdx].id;
       setViewed(prev => ({ ...prev, [qId]: true }));
     }
+
+    // Auto-scroll the active pagination button into view
+    setTimeout(() => {
+      const activeBtn = document.querySelector('.ti-pagination .ti-page-num.active');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 50); // slight delay to allow React to apply the 'active' class
   }, [currentQuestionIdx, testDetails]);
 
   useEffect(() => {
@@ -341,8 +349,8 @@ const TestInterface = () => {
                 <Calculator size={16} />
               </button>
             </div>
+            <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
           </div>
-          <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
 
           {/* Filter Dropdown Popup */}
           {showFilterDropdown && (

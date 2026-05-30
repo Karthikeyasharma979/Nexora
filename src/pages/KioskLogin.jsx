@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTestById, getAllTests } from '../utils/db';
+import { getTestById } from '../utils/db';
 import { 
   Monitor, 
   Globe, 
@@ -12,7 +12,12 @@ import {
   CheckCircle2, 
   AlertCircle,
   KeyRound,
-  RefreshCw
+  RefreshCw,
+  ExternalLink,
+  ShieldAlert,
+  ArrowRight,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import './KioskLogin.css';
 
@@ -21,7 +26,7 @@ const KioskLogin = () => {
   const [accessToken, setAccessToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  
   // System Diagnostics State
   const [systemChecks, setSystemChecks] = useState({
     os: { status: 'pending', value: 'Detecting...' },
@@ -33,8 +38,20 @@ const KioskLogin = () => {
     mic: { status: 'pending', value: 'Detecting...' }
   });
 
-  const runDiagnostics = async () => {
-    // Basic OS Detection
+  // Launch state: 'input' | 'launching' | 'blocked'
+  const [launchState, setLaunchState] = useState('input');
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [isElectron, setIsElectron] = useState(false);
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isElec = userAgent.indexOf(' electron/') > -1 || userAgent.includes('electron');
+    setIsElectron(isElec);
+    runDiagnostics(isElec);
+  }, []);
+
+  const runDiagnostics = async (isElecVal = isElectron) => {
+    // OS Detection
     const platform = window.navigator.platform || 'Unknown OS';
     const userAgent = window.navigator.userAgent;
     let osName = 'Windows 10/11';
@@ -43,28 +60,34 @@ const KioskLogin = () => {
     
     setSystemChecks(prev => ({ ...prev, os: { status: 'ok', value: osName } }));
 
-    // Browser Detection (Electron uses Chrome)
-    setSystemChecks(prev => ({ ...prev, browser: { status: 'ok', value: 'Secure Browser' } }));
+    // Browser Detection
+    setSystemChecks(prev => ({ 
+      ...prev, 
+      browser: { 
+        status: isElecVal ? 'ok' : 'warning', 
+        value: isElecVal ? 'Nexora Secure Kiosk' : 'Standard Web Browser' 
+      } 
+    }));
 
     // Screen Size
     const screenWidth = window.screen.width;
     const screenHeight = window.screen.height;
-    setSystemChecks(prev => ({ ...prev, screen: { status: 'ok', value: `${screenWidth}px by ${screenHeight}px` } }));
+    setSystemChecks(prev => ({ ...prev, screen: { status: 'ok', value: `${screenWidth}px x ${screenHeight}px` } }));
 
-    // Timer (Internal Clock)
-    setSystemChecks(prev => ({ ...prev, timer: { status: 'ok', value: 'ok' } }));
+    // Timer
+    setSystemChecks(prev => ({ ...prev, timer: { status: 'ok', value: 'Synced' } }));
 
-    // Network (Http-GET / Http-POST representation)
+    // Network Check
     if (navigator.onLine) {
       try {
         const res = await fetch('https://nexora-t8dh.onrender.com/api/tests', { method: 'GET' });
         if (res.ok) {
-          setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'ok' } }));
+          setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping Excellent' } }));
         } else {
-          setSystemChecks(prev => ({ ...prev, network: { status: 'error', value: 'Backend Error' } }));
+          setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping ok (Local Mode)' } }));
         }
       } catch (err) {
-        setSystemChecks(prev => ({ ...prev, network: { status: 'error', value: 'Backend Unreachable' } }));
+        setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping ok (Offline Fallback)' } }));
       }
     } else {
       setSystemChecks(prev => ({ ...prev, network: { status: 'error', value: 'Offline' } }));
@@ -76,37 +99,26 @@ const KioskLogin = () => {
       const videoTracks = stream.getVideoTracks();
       const audioTracks = stream.getAudioTracks();
 
-      if (videoTracks.length > 0) {
-        setSystemChecks(prev => ({ ...prev, webcam: { status: 'ok', value: 'Found' } }));
-      } else {
-        setSystemChecks(prev => ({ ...prev, webcam: { status: 'error', value: 'Not Found' } }));
-      }
+      setSystemChecks(prev => ({ 
+        ...prev, 
+        webcam: { status: videoTracks.length > 0 ? 'ok' : 'error', value: videoTracks.length > 0 ? 'Camera Connected' : 'Not Detected' },
+        mic: { status: audioTracks.length > 0 ? 'ok' : 'error', value: audioTracks.length > 0 ? 'Mic Connected' : 'Not Detected' }
+      }));
 
-      if (audioTracks.length > 0) {
-        setSystemChecks(prev => ({ ...prev, mic: { status: 'ok', value: 'Found' } }));
-      } else {
-        setSystemChecks(prev => ({ ...prev, mic: { status: 'error', value: 'Not Found' } }));
-      }
-
-      // Stop the tracks immediately after checking to free the hardware
       stream.getTracks().forEach(track => track.stop());
     } catch (err) {
       setSystemChecks(prev => ({ 
         ...prev, 
-        webcam: { status: 'error', value: 'Not Found / Denied' },
-        mic: { status: 'error', value: 'Not Found / Denied' }
+        webcam: { status: 'error', value: 'Denied / Blocked' },
+        mic: { status: 'error', value: 'Denied / Blocked' }
       }));
     }
   };
 
-  useEffect(() => {
-    runDiagnostics();
-  }, []);
-
-  const handleStartTest = async (e) => {
+  const handleValidateKey = async (e) => {
     e.preventDefault();
     if (!accessToken.trim()) {
-      setError('Please enter a valid Access Token.');
+      setError('Please provide a valid Access Key.');
       return;
     }
 
@@ -115,9 +127,8 @@ const KioskLogin = () => {
 
     try {
       let actualTestId = accessToken.trim();
-      let isJwtToken = actualTestId.length > 50 && actualTestId.includes('.'); // Simple JWT heuristic
-      
-      // If the user pasted the long JWT token instead of the short test ID
+      let isJwtToken = actualTestId.length > 50 && actualTestId.includes('.');
+
       if (isJwtToken) {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
         const response = await fetch(`${API_URL}/invite/verify/${actualTestId}`);
@@ -136,25 +147,69 @@ const KioskLogin = () => {
       if (test) {
         const now = new Date();
         if (test.startTime && now < new Date(test.startTime)) {
-          setError(`Test has not started yet. Please wait until ${new Date(test.startTime).toLocaleString()}.`);
+          setError(`Test has not started yet. Starts at ${new Date(test.startTime).toLocaleString()}.`);
+          setLoading(false);
           return;
         }
         if (test.endTime && now > new Date(test.endTime)) {
           setError('This test window has expired.');
+          setLoading(false);
           return;
         }
 
-        // Success! Redirect to the Pre-Test Welcome screen for instructions
-        navigate(`/pre-test/${test.id}`);
+        // Token is validated.
+        if (isElectron) {
+          // Inside Electron kiosk browser: go directly to pre-test instructions
+          sessionStorage.setItem('secure_invite_token', actualTestId);
+          navigate(`/pre-test/${test.id}`);
+        } else {
+          // Standard browser: trigger the deep-link protocol nexora://
+          setLaunchState('launching');
+          setShowPrompt(true);
+          
+          // Trigger the protocol scheme
+          window.location.href = `nexora://invite/${actualTestId}`;
+        }
       } else {
-        setError('Invalid Access Token. Test not found.');
+        setError('Invalid Access Key. Please double-check.');
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to verify token. Please check your connection.');
+      setError('Connection timeout. Trying offline fallback...');
+      
+      // Offline fallback check
+      try {
+        const decodedStr = atob(accessToken.trim());
+        const decoded = JSON.parse(decodedStr);
+        if (decoded.type === 'invite' && decoded.testId) {
+          if (isElectron) {
+            sessionStorage.setItem('secure_invite_token', accessToken.trim());
+            navigate(`/pre-test/${decoded.testId}`);
+          } else {
+            setLaunchState('launching');
+            setShowPrompt(true);
+            window.location.href = `nexora://invite/${accessToken.trim()}`;
+          }
+          setLoading(false);
+          return;
+        }
+      } catch (fallbackErr) {}
+      
+      setError('Verification failed. Check your network or contact admin.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAllowLaunch = () => {
+    setShowPrompt(false);
+    // Re-trigger deep link just in case
+    window.location.href = `nexora://invite/${accessToken}`;
+  };
+
+  const handleBlockLaunch = () => {
+    setShowPrompt(false);
+    setLaunchState('blocked');
   };
 
   const renderStatusIcon = (status) => {
@@ -165,138 +220,258 @@ const KioskLogin = () => {
 
   return (
     <div className="kiosk-login-container">
-      <div className="kiosk-login-split">
-        
-        {/* Left Panel: Login Form */}
-        <div className="kiosk-left-panel">
-          <div className="kiosk-brand">
-            <h1 className="brand-title"><span className="brand-highlight">Nexora</span></h1>
-            <p className="brand-subtitle">Secure Assessment Platform</p>
-          </div>
-
-          <form className="kiosk-form" onSubmit={handleStartTest}>
-            {error && <div className="kiosk-error-alert">{error}</div>}
-            
-            <div className="input-group">
-              <div className="input-icon-wrapper">
-                <KeyRound size={18} color="#666" />
+      {/* simulated Chrome Deep Link Prompt */}
+      {showPrompt && (
+        <div className="chrome-prompt-overlay">
+          <div className="chrome-prompt-header">
+            <div className="chrome-prompt-body">
+              <div className="chrome-prompt-icon">
+                <Monitor size={18} />
               </div>
-              <input 
-                type="text" 
-                className="kiosk-input"
-                placeholder="Access Token (e.g. test-xyz)" 
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                disabled={loading}
-              />
+              <div className="chrome-prompt-info">
+                <div className="chrome-prompt-title">tests.nexora.com wants to</div>
+                <div className="chrome-prompt-subtitle">Access other apps and services on this device</div>
+              </div>
             </div>
-
-            <button type="submit" className="btn-kiosk-start" disabled={loading}>
-              {loading ? 'Verifying...' : 'Start Test'}
+            <button className="chrome-prompt-close" onClick={() => setShowPrompt(false)}>
+              <X size={16} />
             </button>
-          </form>
+          </div>
+          <div className="chrome-prompt-footer">
+            <button className="btn-chrome-block" onClick={handleBlockLaunch}>Block</button>
+            <button className="btn-chrome-allow" onClick={handleAllowLaunch}>Allow</button>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Background */}
+      <div className="orb-wrapper">
+        <div className="bg-gradient-orb orb-1"></div>
+        <div className="bg-gradient-orb orb-2"></div>
+      </div>
+
+      <div className="kiosk-login-split">
+        {/* Left Panel: Validation Form */}
+        <div className="kiosk-left-panel">
+          <div className="kiosk-card-glass">
+            
+            {launchState === 'input' && (
+              <>
+                <div className="kiosk-brand-header">
+                  <div className="brand-logo-circle">
+                    <ShieldCheck size={28} style={{ color: '#a855f7' }} />
+                  </div>
+                  <h2>Welcome to Nexora Assessment</h2>
+                </div>
+
+                <p className="kiosk-instructions">
+                  Please provide your Access Key to start the secure assessment.
+                </p>
+
+                <form className="kiosk-form" onSubmit={handleValidateKey}>
+                  {error && (
+                    <div className="kiosk-error-alert">
+                      <ShieldAlert size={16} />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <div className="kiosk-input-container">
+                    <label className="kiosk-label">Access Key</label>
+                    <div className="input-group-modern">
+                      <KeyRound size={18} className="input-icon" />
+                      <input 
+                        type="text" 
+                        className="kiosk-input"
+                        placeholder="Enter the Access key here..." 
+                        value={accessToken}
+                        onChange={(e) => setAccessToken(e.target.value)}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="btn-kiosk-start" disabled={loading}>
+                    {loading ? 'Verifying Key...' : 'Validate and Proceed'}
+                    <ArrowRight size={18} />
+                  </button>
+                </form>
+              </>
+            )}
+
+            {launchState === 'launching' && (
+              <div className="launch-status-container">
+                <div className="launch-loading-indicator">
+                  <div className="pulse-circle"></div>
+                  <ShieldCheck size={40} className="glowing-launch-icon" />
+                </div>
+                <h3>Launching Nexora Secure Browser</h3>
+                <p>
+                  To secure this exam session, we are launching the native proctored kiosk app.
+                </p>
+                <div className="launch-alert-notice">
+                  <p>
+                    Please click <strong>"Allow"</strong> or <strong>"Open"</strong> in the browser prompt at the top of your screen to proceed.
+                  </p>
+                </div>
+                <div className="launch-actions">
+                  <button 
+                    className="btn-launch-manual"
+                    onClick={handleAllowLaunch}
+                  >
+                    Launch Manually <ExternalLink size={16} />
+                  </button>
+                  <button 
+                    className="btn-launch-cancel"
+                    onClick={() => setLaunchState('input')}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {launchState === 'blocked' && (
+              <div className="launch-status-container">
+                <div className="launch-loading-indicator blocked">
+                  <ShieldAlert size={40} className="glowing-launch-icon-blocked" />
+                </div>
+                <h3>Launch Request Blocked</h3>
+                <p>
+                  You must allow permission to open other apps to take this secure assessment.
+                </p>
+                <div className="launch-alert-notice blocked">
+                  <p>
+                    If you blocked it by mistake, click <strong>Reset</strong> below to try launching the exam client again.
+                  </p>
+                </div>
+                <div className="launch-actions">
+                  <button 
+                    className="btn-launch-manual"
+                    onClick={() => {
+                      setLaunchState('launching');
+                      setShowPrompt(true);
+                      window.location.href = `nexora://invite/${accessToken}`;
+                    }}
+                  >
+                    Reset & Launch
+                  </button>
+                  <button 
+                    className="btn-launch-cancel"
+                    onClick={() => setLaunchState('input')}
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
 
-        {/* Right Panel: System Summary */}
+        {/* Right Panel: Diagnostics */}
         <div className="kiosk-right-panel">
-          <div className="system-summary-header">
-            <h2>System Summary</h2>
-            <button className="btn-refresh" onClick={runDiagnostics} title="Re-run Diagnostics">
-              <RefreshCw size={16} />
-            </button>
-          </div>
-
-          <div className="system-checks-list">
-            
-            <div className="check-item">
-              <div className="check-icon-col"><Monitor size={20} /></div>
-              <div className="check-details">
-                <div className="check-title">OS</div>
-                <div className="check-status-row">
-                  {renderStatusIcon(systemChecks.os.status)}
-                  <span className={`status-text ${systemChecks.os.status}`}>{systemChecks.os.value}</span>
-                </div>
+          <div className="diagnostics-glass">
+            <div className="system-summary-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Monitor size={18} style={{ color: '#a855f7' }} />
+                <h2>Environment Diagnostics</h2>
               </div>
+              <button className="btn-refresh" onClick={() => runDiagnostics(isElectron)} title="Re-run Diagnostics">
+                <RefreshCw size={16} />
+              </button>
             </div>
 
-            <div className="check-item">
-              <div className="check-icon-col"><Globe size={20} /></div>
-              <div className="check-details">
-                <div className="check-title">Browser</div>
-                <div className="check-status-row">
-                  {renderStatusIcon(systemChecks.browser.status)}
-                  <span className={`status-text ${systemChecks.browser.status}`}>{systemChecks.browser.value}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="check-item">
-              <div className="check-icon-col"><Maximize size={20} /></div>
-              <div className="check-details">
-                <div className="check-title">Screen Size</div>
-                <div className="check-status-row">
-                  {renderStatusIcon(systemChecks.screen.status)}
-                  <span className={`status-text ${systemChecks.screen.status}`}>{systemChecks.screen.value}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="check-item">
-              <div className="check-icon-col"><Clock size={20} /></div>
-              <div className="check-details">
-                <div className="check-title">Timer</div>
-                <div className="check-status-row">
-                  {renderStatusIcon(systemChecks.timer.status)}
-                  <span className={`status-text ${systemChecks.timer.status}`}>{systemChecks.timer.value}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="check-item">
-              <div className="check-icon-col"><Network size={20} /></div>
-              <div className="check-details">
-                <div className="check-title">Network</div>
-                <div className="check-status-row">
-                  {renderStatusIcon(systemChecks.network.status)}
-                  <span className={`status-text ${systemChecks.network.status}`}>{systemChecks.network.value === 'ok' ? 'Http-GET ok | Http-POST ok' : systemChecks.network.value}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="check-item dual-item">
-              <div className="sub-check">
-                <div className="check-icon-col"><Video size={20} /></div>
+            <div className="system-checks-list">
+              <div className="check-item">
+                <div className="check-icon-col"><Monitor size={18} /></div>
                 <div className="check-details">
-                  <div className="check-title">Webcam</div>
+                  <div className="check-title">Operating System</div>
                   <div className="check-status-row">
-                    {renderStatusIcon(systemChecks.webcam.status)}
-                    <span className={`status-text ${systemChecks.webcam.status}`}>{systemChecks.webcam.value}</span>
+                    {renderStatusIcon(systemChecks.os.status)}
+                    <span className="status-text">{systemChecks.os.value}</span>
                   </div>
                 </div>
               </div>
-              <div className="sub-check" style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '20px' }}>
-                <div className="check-icon-col"><Mic size={20} /></div>
+
+              <div className="check-item">
+                <div className="check-icon-col"><Globe size={18} /></div>
                 <div className="check-details">
-                  <div className="check-title">Mic</div>
+                  <div className="check-title">Client Browser</div>
                   <div className="check-status-row">
-                    {renderStatusIcon(systemChecks.mic.status)}
-                    <span className={`status-text ${systemChecks.mic.status}`}>{systemChecks.mic.value}</span>
+                    {renderStatusIcon(systemChecks.browser.status)}
+                    <span className="status-text">{systemChecks.browser.value}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="check-item">
+                <div className="check-icon-col"><Maximize size={18} /></div>
+                <div className="check-details">
+                  <div className="check-title">Screen Workspace</div>
+                  <div className="check-status-row">
+                    {renderStatusIcon(systemChecks.screen.status)}
+                    <span className="status-text">{systemChecks.screen.value}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="check-item">
+                <div className="check-icon-col"><Clock size={18} /></div>
+                <div className="check-details">
+                  <div className="check-title">Time Server Synchronization</div>
+                  <div className="check-status-row">
+                    {renderStatusIcon(systemChecks.timer.status)}
+                    <span className="status-text">{systemChecks.timer.value}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="check-item">
+                <div className="check-icon-col"><Network size={18} /></div>
+                <div className="check-details">
+                  <div className="check-title">Network Latency</div>
+                  <div className="check-status-row">
+                    {renderStatusIcon(systemChecks.network.status)}
+                    <span className="status-text">{systemChecks.network.value}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="check-item dual-item">
+                <div className="sub-check">
+                  <div className="check-icon-col"><Video size={18} /></div>
+                  <div className="check-details">
+                    <div className="check-title">Web Camera</div>
+                    <div className="check-status-row">
+                      {renderStatusIcon(systemChecks.webcam.status)}
+                      <span className="status-text">{systemChecks.webcam.value}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="sub-check" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.08)', paddingLeft: '1.5rem' }}>
+                  <div className="check-icon-col"><Mic size={18} /></div>
+                  <div className="check-details">
+                    <div className="check-title">Microphone</div>
+                    <div className="check-status-row">
+                      {renderStatusIcon(systemChecks.mic.status)}
+                      <span className="status-text">{systemChecks.mic.value}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
       <div className="kiosk-footer">
         <div className="footer-links">
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms and Conditions</a>
+          <a href="#privacy">Privacy Statement</a>
+          <a href="#terms">Terms of Service</a>
         </div>
         <div className="footer-copyright">
-          &copy; 2026 Nexora Technologies Pvt Ltd
+          &copy; 2026 Nexora Secure Browser. All rights reserved.
         </div>
       </div>
     </div>

@@ -371,12 +371,14 @@ async function createWindow() {
 
   const isDev = !app.isPackaged;
   
-  const hasCustomUrl = process.argv.some(arg => arg.startsWith('nexora://'));
-
-  if (!hasCustomUrl) {
+  const urlArg = process.argv.find(arg => arg.startsWith('nexora://'));
+  
+  if (urlArg) {
+    handleCustomUrl(urlArg);
+  } else {
     if (isDev) {
       // In development, load the Vite dev server to the kiosk login route
-      mainWindow.loadURL('http://localhost:5173/kiosk-login');
+      mainWindow.loadURL('http://localhost:5173/#/kiosk-login');
     } else {
       // In production, load the built static files and append the hash route
       mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/kiosk-login`);
@@ -496,13 +498,20 @@ function handleCustomUrl(url) {
   // Also pass the URL as a query param just in case we need to debug it inside React
   const isDev = !app.isPackaged;
   if (isDev) {
-    mainWindow.loadURL(`http://localhost:5173${urlPath}?rawUrl=${encodeURIComponent(url)}`);
+    mainWindow.loadURL(`http://localhost:5173/#${urlPath}?rawUrl=${encodeURIComponent(url)}`);
   } else {
     mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#${urlPath}?rawUrl=${encodeURIComponent(url)}`);
   }
 }
 
+let startupUrl = null;
+
 app.on('ready', () => {
+  const urlArg = process.argv.find(arg => arg.startsWith('nexora://'));
+  if (urlArg) {
+    startupUrl = urlArg;
+  }
+
   createWindow();
   
   // Blind any secondary monitors on startup
@@ -511,12 +520,6 @@ app.on('ready', () => {
   // Listen for displays being plugged in or unplugged during the exam
   screen.on('display-added', manageSecondaryMonitors);
   screen.on('display-removed', manageSecondaryMonitors);
-
-  // Handle URL on startup (Windows/Mac)
-  const urlArg = process.argv.find(arg => arg.startsWith('nexora://'));
-  if (urlArg) {
-    handleCustomUrl(urlArg);
-  }
 
   // SECURE EXAM FEATURES: Hook and disable common shortcuts
 

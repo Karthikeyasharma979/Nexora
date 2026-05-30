@@ -1,17 +1,26 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Settings, Bell, Search } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Bell, Search, LogOut, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import './AdminLayout.css';
+import '../pages/HomePage.css'; // For cyber grid
 
 const AdminLayout = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   
   // Resolve current active tab from query parameters, defaulting to 'dashboard'
   const activeTab = searchParams.get('tab') || 'dashboard';
 
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    navigate('/admin/login');
+  };
+
   return (
     <div className="admin-layout-wrapper">
+      <div className="cyber-grid-bg"></div>
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <div className="brand-logo">N</div>
@@ -48,11 +57,11 @@ const AdminLayout = () => {
           </ul>
         </nav>
         
-        <div className="admin-user-profile">
-          <div className="user-avatar">AD</div>
+        <div className="admin-user-profile" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <div className="user-avatar" style={{ background: 'transparent' }}><Home size={20} /></div>
           <div className="user-info">
-            <span className="user-name">Admin User</span>
-            <span className="user-role">Super Admin</span>
+            <span className="user-name">Site Home</span>
+            <span className="user-role">Return to public site</span>
           </div>
         </div>
       </aside>
@@ -68,7 +77,9 @@ const AdminLayout = () => {
               <Bell size={20} />
               <span className="notification-badge"></span>
             </button>
-            <div className="topbar-avatar">AD</div>
+            <button className="icon-btn" onClick={handleLogout} title="Logout">
+              <LogOut size={20} />
+            </button>
           </div>
         </header>
         

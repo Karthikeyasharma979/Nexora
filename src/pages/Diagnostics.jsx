@@ -158,6 +158,9 @@ const Diagnostics = () => {
 
         if (isElectron || !requireSEB) {
           // If we are in the Secure Browser, OR the test doesn't require it, go straight to the test
+          if (!isElectron && !document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
+          }
           navigate(`/test/${testId}`);
         } else {
           // Move to Monitored Session Gateway for web users to launch the app
@@ -188,6 +191,9 @@ const Diagnostics = () => {
   };
 
   const handleWebFallback = () => {
+    if (!window.navigator.userAgent.toLowerCase().includes('electron') && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
+    }
     navigate(`/test/${testId}`);
   };
 
@@ -557,22 +563,20 @@ const Diagnostics = () => {
                       <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Full Name *</label>
                       <input 
                         type="text" 
-                        className="modern-input" 
                         value={candidateName} 
                         onChange={(e) => setCandidateName(e.target.value)} 
                         placeholder="e.g. John Doe"
-                        style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none' }}
+                        style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Email Address *</label>
                       <input 
                         type="email" 
-                        className="modern-input" 
                         value={candidateEmail} 
                         onChange={(e) => setCandidateEmail(e.target.value)} 
                         placeholder="e.g. john@example.com"
-                        style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none' }}
+                        style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
                     <button 

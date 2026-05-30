@@ -94,6 +94,17 @@ mongoose.connect(MONGODB_URI)
     initInMemoryDb();
   });
 
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB connection lost. Automatically switching to in-memory fallback mode.');
+  if (!useInMemoryDb) initInMemoryDb();
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB runtime error:', err.message);
+  if (!useInMemoryDb) initInMemoryDb();
+});
+
+
 // Schema definition
 const questionSchema = new mongoose.Schema({
   id: { type: Number, required: true },
@@ -127,6 +138,20 @@ const reportSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Report = mongoose.model('Report', reportSchema);
+
+const demoRequestSchema = new mongoose.Schema({
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  email: { type: String, required: true },
+  company: { type: String, required: true },
+  testVolume: { type: String, required: true },
+  useCase: { type: String, required: true }
+}, { timestamps: true });
+
+const DemoRequest = mongoose.model('DemoRequest', demoRequestSchema);
+
+// In-memory fallback for demo requests
+let inMemoryDemoRequests = [];
 
 // Seeding initial demo test if collection is empty
 async function seedDatabase() {
@@ -327,6 +352,31 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
+// 8. Save a demo request
+app.post('/api/demo-requests', async (req, res) => {
+  try {
+    const { firstName, lastName, email, company, testVolume, useCase } = req.body;
+    if (!firstName || !lastName || !email || !company) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const requestData = { firstName, lastName, email, company, testVolume, useCase };
+
+    if (useInMemoryDb) {
+      const savedRequest = { ...requestData, _id: Date.now().toString(), createdAt: new Date().toISOString() };
+      inMemoryDemoRequests.unshift(savedRequest);
+      return res.status(201).json(savedRequest);
+    }
+
+    const newRequest = new DemoRequest(requestData);
+    await newRequest.save();
+    res.status(201).json(newRequest);
+  } catch (error) {
+    console.error('Error saving demo request:', error);
+    res.status(500).json({ error: 'Server error saving demo request' });
+  }
+});
+
 // --- ADMIN & SECURE INVITE ROUTES ---
 
 // Admin Login
@@ -449,11 +499,13 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
               </ul>
             </div>
 
-            <p style="margin-top: 30px;">The assessment window is now open. Click on the button below to start the assessment securely.</p>
+            <p style="margin-top: 30px;">The assessment window is now open. To begin your assessment, please open the <strong>Nexora Secure Browser</strong> on your computer and enter the following Access Key:</p>
             
-            <a href="${fallbackLink}" style="display: inline-block; background-color: #0d47a1; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 20px; font-weight: bold; margin-top: 10px; margin-bottom: 20px;">Start test ▶</a>
+            <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <span style="font-family: monospace; font-size: 14px; color: #0f172a; word-break: break-all;">${token}</span>
+            </div>
             
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">If you are unable to launch the app, ensure you have the Nexora Secure Browser installed.</p>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">If you do not have the application installed, please contact your administrator for the installer.</p>
             
             <p style="margin-top: 40px;">Wishing you all the best for the assessment!</p>
             <p>Regards,<br/><strong>Talent Acquisition Team</strong></p>
