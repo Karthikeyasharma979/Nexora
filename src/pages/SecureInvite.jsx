@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, ExternalLink, ShieldCheck, Download } from 'lucide-react';
+import { getTestById } from '../utils/db';
 
 const SecureInvite = () => {
   const { token } = useParams();
@@ -17,62 +18,77 @@ const SecureInvite = () => {
     // 2. Verify the token first
     const verifyToken = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${API_URL}/invite/verify/${token}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const requiresSEB = data.requireSEB !== false; // defaults to true
-
-          if (requiresSEB && !isElectron) {
-            // The test strictly requires the Secure Browser, but they opened it in Chrome.
-            // We must bounce them to the native app using the custom protocol handler.
-            setIsBrowserAndRequiredSEB(true);
-            setVerifying(false);
-            
-            // Attempt to automatically trigger the deep link
-            window.location.href = `nexora://invite/${token}`;
-            return;
-          }
-
-          // Token is valid and they are either in the Secure Browser, 
-          // OR the test doesn't require it. Forward securely to the test!
-          sessionStorage.setItem('secure_invite_token', token);
-          navigate(`/pre-test/${data.testId}`, { replace: true });
-        } else {
-          const errData = await response.json();
-          setError(errData.error || 'Invalid or Expired Invite Link');
-          setVerifying(false);
-        }
-      } catch (err) {
-        console.error("Error verifying token from backend, trying offline fallback...", err);
+        let isJwtToken = token.length > 50 && token.includes('.');
+        let offlineDecoded = null;
         try {
           const decodedStr = atob(token);
           const decoded = JSON.parse(decodedStr);
           if (decoded.type === 'invite' && decoded.testId) {
-             const data = localStorage.getItem('mettl_clone_tests');
-             const tests = data ? JSON.parse(data) : [];
-             const test = tests.find(t => t.id === decoded.testId);
-             if (test) {
-               const requiresSEB = test.requireSEB !== false;
-               if (requiresSEB && !isElectron) {
-                 setIsBrowserAndRequiredSEB(true);
-                 setVerifying(false);
-                 window.location.href = `nexora://invite/${token}`;
-                 return;
-               }
-               sessionStorage.setItem('secure_invite_token', token);
-               navigate(`/pre-test/${decoded.testId}`, { replace: true });
-               return;
-             } else {
-               setError('Test not found locally (offline mode).');
-               setVerifying(false);
-               return;
-             }
+            offlineDecoded = decoded;
           }
-        } catch (fallbackErr) {
-          // If fallback parsing fails, proceed to generic error
+        } catch(e) {}
+
+        let requiresSEB = true;
+        let testId = token;
+
+        if (isJwtToken) {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const response = await fetch(`${API_URL}/invite/verify/${token}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            requiresSEB = data.requireSEB !== false; // defaults to true
+            testId = data.testId;
+          } else {
+            const errData = await response.json();
+            setError(errData.error || 'Invalid or Expired Invite Link');
+            setVerifying(false);
+            return;
+          }
+        } else {
+          // It's either an offline base64 token or a direct test ID
+          if (offlineDecoded) {
+            testId = offlineDecoded.testId;
+          }
+          
+          const test = await getTestById(testId);
+          if (!test) {
+            setError('Invalid Access Key or Test not found.');
+            setVerifying(false);
+            return;
+          }
+          requiresSEB = test.requireSEB !== false;
+          
+          const now = new Date();
+          if (test.startTime && now < new Date(test.startTime)) {
+            setError(`Test has not started yet. Starts at ${new Date(test.startTime).toLocaleString()}.`);
+            setVerifying(false);
+            return;
+          }
+          if (test.endTime && now > new Date(test.endTime)) {
+            setError('This test window has expired.');
+            setVerifying(false);
+            return;
+          }
         }
+
+        if (requiresSEB && !isElectron) {
+          // The test strictly requires the Secure Browser, but they opened it in Chrome.
+          // We must bounce them to the native app using the custom protocol handler.
+          setIsBrowserAndRequiredSEB(true);
+          setVerifying(false);
+          
+          // Attempt to automatically trigger the deep link
+          window.location.href = `nexora://invite/${token}`;
+          return;
+        }
+
+        // Token is valid and they are either in the Secure Browser, 
+        // OR the test doesn't require it. Forward securely to the test!
+        sessionStorage.setItem('secure_invite_token', testId);
+        navigate(`/pre-test/${testId}`, { replace: true });
+      } catch (err) {
+        console.error("Error verifying invite link:", err);
         setError('Connection error verifying invite link.');
         setVerifying(false);
       }

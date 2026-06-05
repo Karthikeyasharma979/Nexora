@@ -128,6 +128,14 @@ const KioskLogin = () => {
     try {
       let actualTestId = accessToken.trim();
       let isJwtToken = actualTestId.length > 50 && actualTestId.includes('.');
+      let offlineDecoded = null;
+      try {
+        const decodedStr = atob(actualTestId);
+        const decoded = JSON.parse(decodedStr);
+        if (decoded.type === 'invite' && decoded.testId) {
+          offlineDecoded = decoded;
+        }
+      } catch(e) {}
 
       if (isJwtToken) {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -141,6 +149,8 @@ const KioskLogin = () => {
           setLoading(false);
           return;
         }
+      } else if (offlineDecoded) {
+        actualTestId = offlineDecoded.testId;
       }
 
       const test = await getTestById(actualTestId);
@@ -168,33 +178,13 @@ const KioskLogin = () => {
           setShowPrompt(true);
           
           // Trigger the protocol scheme
-          window.location.href = `nexora://invite/${actualTestId}`;
+          window.location.href = `nexora://invite/${accessToken.trim()}`;
         }
       } else {
         setError('Invalid Access Key. Please double-check.');
       }
     } catch (err) {
       console.error(err);
-      setError('Connection timeout. Trying offline fallback...');
-      
-      // Offline fallback check
-      try {
-        const decodedStr = atob(accessToken.trim());
-        const decoded = JSON.parse(decodedStr);
-        if (decoded.type === 'invite' && decoded.testId) {
-          if (isElectron) {
-            sessionStorage.setItem('secure_invite_token', accessToken.trim());
-            navigate(`/pre-test/${decoded.testId}`);
-          } else {
-            setLaunchState('launching');
-            setShowPrompt(true);
-            window.location.href = `nexora://invite/${accessToken.trim()}`;
-          }
-          setLoading(false);
-          return;
-        }
-      } catch (fallbackErr) {}
-      
       setError('Verification failed. Check your network or contact admin.');
     } finally {
       setLoading(false);
@@ -449,7 +439,7 @@ const KioskLogin = () => {
                     </div>
                   </div>
                 </div>
-                <div className="sub-check" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.08)', paddingLeft: '1.5rem' }}>
+                <div className="sub-check" style={{ borderLeft: '1px solid rgba(148, 163, 184, 0.24)', paddingLeft: '1.5rem' }}>
                   <div className="check-icon-col"><Mic size={18} /></div>
                   <div className="check-details">
                     <div className="check-title">Microphone</div>

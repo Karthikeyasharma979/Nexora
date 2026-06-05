@@ -131,6 +131,31 @@ const Diagnostics = () => {
     }
   };
 
+  // Electron-specific secure screen capture request via preload IPC
+  const requestScreenCaptureElectron = async () => {
+    try {
+      setScreenStatus('requesting');
+      setScreenErrorMessage('');
+
+      if (window && window.secure && typeof window.secure.requestScreenCapture === 'function') {
+        const result = await window.secure.requestScreenCapture();
+        if (result && result.allowed) {
+          setScreenStatus('granted');
+        } else {
+          setScreenStatus('denied');
+          setScreenErrorMessage('Screen capture was denied or not available.');
+        }
+      } else {
+        setScreenStatus('denied');
+        setScreenErrorMessage('Secure IPC not available. Falling back to browser flow.');
+      }
+    } catch (e) {
+      console.error('Electron screen capture error:', e);
+      setScreenStatus('denied');
+      setScreenErrorMessage(e.message || 'Unknown error');
+    }
+  };
+
   const handleProceed = () => {
     if (currentPhase === 0) {
       if (permissionsStatus === 'granted' && screenStatus === 'granted') {
@@ -376,6 +401,19 @@ const Diagnostics = () => {
               </ul>
               
               <div className="diag-scenarios">
+                {/* Electron secure capture example */}
+                {window && window.navigator && window.navigator.userAgent.toLowerCase().includes('electron') && (
+                  <div style={{ marginBottom: '16px', padding: '10px', border: '1px dashed #cbd5e1', borderRadius: '6px' }}>
+                    <strong>Secure Browser Screen Capture</strong>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: screenStatus === 'granted' ? '#16a34a' : screenStatus === 'denied' ? '#ef4444' : '#64748b' }}>{screenStatus}</span>
+                      <button className="diag-btn-secondary" onClick={requestScreenCaptureElectron} style={{ padding: '6px 12px' }}>
+                        Request Screen Capture
+                      </button>
+                      {screenErrorMessage && <div style={{ color: '#ef4444', fontSize: '12px' }}>{screenErrorMessage}</div>}
+                    </div>
+                  </div>
+                )}
                 <div className="diag-scenario-group">
                   <h4 className="text-success">GOOD SCENARIOS</h4>
                   <div className="diag-scenario-item">

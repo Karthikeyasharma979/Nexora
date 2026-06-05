@@ -1,11 +1,11 @@
-/* Purple/Rose Kiosk Design System */
+/* Light Kiosk Design System */
 :root {
-  --kiosk-bg: #06020c;
-  --kiosk-card-bg: rgba(22, 14, 38, 0.45);
-  --kiosk-border: rgba(255, 255, 255, 0.06);
-  --kiosk-text-primary: #f8fafc;
-  --kiosk-text-secondary: #cbd5e1;
-  --kiosk-text-muted: #94a3b8;
+  --kiosk-bg: #f4f7ff;
+  --kiosk-card-bg: rgba(255, 255, 255, 0.9);
+  --kiosk-border: rgba(99, 102, 241, 0.14);
+  --kiosk-text-primary: #111827;
+  --kiosk-text-secondary: #475569;
+  --kiosk-text-muted: #64748b;
   
   --color-violet: #a855f7;
   --color-rose: #f43f5e;
@@ -23,6 +23,22 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
   position: relative;
+  background-image: radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.08), transparent 35%), radial-gradient(circle at 85% 70%, rgba(244, 63, 94, 0.08), transparent 35%);
+}
+
+/* Soft film-grain texture for a premium light look */
+.kiosk-login-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.18;
+  background-image:
+    radial-gradient(rgba(15, 23, 42, 0.08) 0.7px, transparent 0.7px),
+    radial-gradient(rgba(15, 23, 42, 0.05) 0.7px, transparent 0.7px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 1px;
 }
 
 /* Background floating mesh orbs */
@@ -41,7 +57,7 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(140px);
-  opacity: 0.35;
+  opacity: 0.2;
   z-index: 0;
   animation: floatKioskOrb 20s infinite ease-in-out alternate;
 }
@@ -51,7 +67,7 @@
   left: -10%;
   width: 50vw;
   height: 50vw;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0) 70%);
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.16) 0%, rgba(168, 85, 247, 0) 70%);
 }
 
 .orb-2 {
@@ -59,7 +75,7 @@
   right: -10%;
   width: 50vw;
   height: 50vw;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.15) 0%, rgba(244, 63, 94, 0) 70%);
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.1) 0%, rgba(244, 63, 94, 0) 70%);
   animation-delay: -10s;
 }
 
@@ -220,9 +236,23 @@
   border: 1px solid var(--kiosk-border);
   border-radius: 1.5rem;
   padding: 3rem 2.5rem;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 40px rgba(79, 70, 229, 0.12), 0 8px 24px rgba(15, 23, 42, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.kiosk-card-glass::after {
+  content: '';
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: -70px;
+  height: 140px;
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.1), rgba(244, 63, 94, 0.08), rgba(245, 158, 11, 0.08));
+  filter: blur(28px);
+  pointer-events: none;
 }
 
 .kiosk-brand-header {
@@ -238,26 +268,27 @@
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.12), rgba(244, 63, 94, 0.08));
+  border: 1px solid rgba(168, 85, 247, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+  box-shadow: 0 10px 20px rgba(168, 85, 247, 0.14);
 }
 
 .kiosk-brand-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .kiosk-instructions {
   color: var(--kiosk-text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.65;
   text-align: center;
-  margin-bottom: 2.25rem;
+  margin-bottom: 2.5rem;
 }
 
 .kiosk-form {
@@ -281,23 +312,28 @@
 }
 
 .input-group-modern {
+  position: relative;
   display: flex;
   align-items: center;
-  background: rgba(6, 2, 12, 0.7);
-  border: 1px solid var(--kiosk-border);
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 10px;
-  padding: 0 1rem;
+  padding: 0;
   transition: all 0.25s ease;
 }
 
 .input-group-modern:focus-within {
   border-color: rgba(168, 85, 247, 0.5);
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.12);
 }
 
 .input-icon {
-  color: var(--kiosk-text-muted);
-  margin-right: 0.75rem;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7c3aed;
+  pointer-events: none;
 }
 
 .kiosk-input {
@@ -309,18 +345,19 @@
   font-size: 0.95rem;
   outline: none;
   font-family: inherit;
+  padding: 0 0.9rem 0 2.65rem;
 }
 
 .kiosk-input::placeholder {
-  color: #52525b;
+  color: #94a3b8;
 }
 
 .btn-kiosk-start {
-  background: linear-gradient(135deg, var(--color-violet) 0%, var(--color-rose) 100%);
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 55%, #f97316 100%);
   color: white;
   border: none;
-  height: 50px;
-  font-size: 0.95rem;
+  height: 52px;
+  font-size: 1rem;
   font-weight: 700;
   border-radius: 10px;
   cursor: pointer;
@@ -329,12 +366,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 10px 20px rgba(244, 63, 94, 0.25);
+  box-shadow: 0 14px 28px rgba(236, 72, 153, 0.22), 0 6px 14px rgba(139, 92, 246, 0.2);
 }
 
 .btn-kiosk-start:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(244, 63, 94, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(236, 72, 153, 0.28), 0 8px 20px rgba(139, 92, 246, 0.24);
 }
 
 .btn-kiosk-start:disabled {
@@ -347,7 +384,7 @@
 .kiosk-error-alert {
   background: rgba(244, 63, 94, 0.08);
   border: 1px solid rgba(244, 63, 94, 0.25);
-  color: #fda4af;
+  color: #be123c;
   padding: 0.85rem 1rem;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -438,9 +475,9 @@
 }
 
 .btn-launch-manual {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #0f172a;
   height: 46px;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -454,8 +491,8 @@
 }
 
 .btn-launch-manual:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #f8fafc;
+  border-color: rgba(99, 102, 241, 0.32);
 }
 
 .btn-launch-cancel {
@@ -485,15 +522,28 @@
 .diagnostics-glass {
   width: 100%;
   max-width: 480px;
-  background: rgba(22, 14, 38, 0.35);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--kiosk-border);
   border-radius: 1.5rem;
   padding: 2.5rem;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 36px rgba(79, 70, 229, 0.1), 0 6px 18px rgba(15, 23, 42, 0.05);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.diagnostics-glass::after {
+  content: '';
+  position: absolute;
+  right: -90px;
+  top: -90px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, rgba(168, 85, 247, 0) 70%);
+  pointer-events: none;
 }
 
 .system-summary-header {
@@ -501,7 +551,7 @@
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
   margin-bottom: 0.5rem;
 }
 
@@ -513,8 +563,8 @@
 }
 
 .btn-refresh {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   color: var(--kiosk-text-muted);
   cursor: pointer;
   width: 32px;
@@ -527,9 +577,9 @@
 }
 
 .btn-refresh:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: white;
+  background-color: #eef2ff;
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #4338ca;
 }
 
 .system-checks-list {
@@ -541,7 +591,7 @@
   display: flex;
   align-items: center;
   padding: 1.25rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .check-item:last-child {
@@ -607,8 +657,8 @@
 /* Footer Section */
 .kiosk-footer {
   height: 60px;
-  background-color: rgba(6, 2, 12, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background-color: rgba(255, 255, 255, 0.88);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -631,7 +681,7 @@
 }
 
 .footer-links a:hover {
-  color: white;
+  color: #0f172a;
 }
 
 .footer-copyright {

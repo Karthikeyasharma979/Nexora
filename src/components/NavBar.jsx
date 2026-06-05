@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, NavLink } from 'react-router-dom';
 import { ShieldCheck, Lock } from 'lucide-react';
 import './NavBar.css';
 
@@ -22,23 +22,18 @@ const NavBar = () => {
       </div>
       
       <div className="nav-links">
-        <Link to="/demo" className="nav-link">Interactive Demo</Link>
-        <Link to="/features" className="nav-link">Features</Link>
-        <Link to="/workflow" className="nav-link">Workflow</Link>
+        <NavLink to="/features" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Features</NavLink>
+        <NavLink to="/workflow" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Workflow</NavLink>
       </div>
 
       <div className="nav-actions">
-        <Link to="/request-demo" style={{ textDecoration: 'none' }}>
-          <button className="magnetic-btn btn-demo-cta">
-            Request Demo
-          </button>
-        </Link>
         <button 
           className="btn-nav-action magnetic-btn"
           onClick={() => navigate('/admin')}
+          aria-label="Open Admin Portal"
         >
           <Lock size={14} className="glow-icon" />
-          Admin Portal
+          <span>Admin Portal</span>
         </button>
       </div>
     </nav>

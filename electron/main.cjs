@@ -1,4 +1,12 @@
-const { app, BrowserWindow, globalShortcut, desktopCapturer, screen } = require('electron');
+const { app, BrowserWindow, globalShortcut, desktopCapturer, screen, ipcMain, dialog } = require('electron');
+// Guard: if this file is executed with plain `node` (e.g., via nodemon), the Electron
+// APIs will be undefined and cause confusing TypeErrors like "Cannot read properties
+// of undefined (reading 'on')". Exit early with a clear message to avoid crashes.
+if (!app || typeof app.on !== 'function') {
+  console.error('This script must be run with the Electron runtime, not plain Node.');
+  console.error('Start the app with the `electron` command or via your npm start script.');
+  process.exit(1);
+}
 const path = require('path');
 const { exec, execSync } = require('child_process');
 
@@ -150,42 +158,62 @@ function sanitizeEnvironment(isStartup = false) {
 }
 
 function executeScorchedEarth(whitelistString) {
-  const psKillScript = `
-    $whitelist = @(${whitelistString})
-    $myPid = ${process.pid}
-    Get-Process | Where-Object { 
-      $_.MainWindowHandle -ne 0 -and 
-      $whitelist -notcontains $_.Name -and 
-      $_.Id -ne $myPid 
-    } | Stop-Process -Force
-    
-    (New-Object -ComObject Shell.Application).Windows() | ForEach-Object { $_.Quit() }
-  `;
-  const encodedKill = Buffer.from(psKillScript, 'utf16le').toString('base64');
-  exec(`powershell.exe -NoProfile -EncodedCommand ${encodedKill}`, (err, stdout, stderr) => {
-    // Silently continue
-  });
+  // Safer behavior: do NOT force-kill processes. Instead notify the user which apps
+  // would be closed and recommend closing them manually. This avoids data loss and
+  // prevents abusive behavior.
+  try {
+    const psDetectScript = `
+      $whitelist = @(${whitelistString})
+      $myPid = ${process.pid}
+      $badApps = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $whitelist -notcontains $_.Name -and $_.Id -ne $myPid }
+      if ($badApps.Count -gt 0) { $badApps | Select-Object -ExpandProperty Name -Unique }
+    `;
+    const encoded = Buffer.from(psDetectScript, 'utf16le').toString('base64');
+    exec(`powershell.exe -NoProfile -EncodedCommand ${encoded}`, (err, stdout) => {
+      const apps = stdout ? stdout.trim().split('\n').map(s => s.trim()).filter(s => s.length) : [];
+      if (apps.length > 0) {
+        dialog.showMessageBoxSync({
+          type: 'warning',
+          buttons: ['OK'],
+          title: 'Prohibited Applications Detected',
+          message: 'The following applications may interfere with the secure exam. Please close them manually:',
+          detail: apps.join(', ')
+        });
+      }
+    });
+  } catch (e) {
+    console.warn('[SECURE BROWSER] Could not enumerate processes for detection.', e);
+  }
 }
 
 // --- EXTREME REGISTRY LOCKDOWN ---
 function disableTaskManager() {
   if (process.platform === 'win32') {
-    try {
-      execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 1 /f', { stdio: 'ignore' });
-      console.log('[SECURE BROWSER] Task Manager physically disabled via Registry.');
-    } catch (e) {
-      console.warn('[SECURE BROWSER] Could not disable Task Manager (may lack permissions).');
+    // Only modify registry if explicitly allowed via env var to avoid surprising changes.
+    if (process.env.ALLOW_REGISTRY_CHANGE === '1') {
+      try {
+        execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 1 /f', { stdio: 'ignore' });
+        console.log('[SECURE BROWSER] Task Manager physically disabled via Registry.');
+      } catch (e) {
+        console.warn('[SECURE BROWSER] Could not disable Task Manager (may lack permissions).');
+      }
+    } else {
+      console.log('[SECURE BROWSER] Skipping registry changes to disable Task Manager (ALLOW_REGISTRY_CHANGE not set).');
     }
   }
 }
 
 function enableTaskManager() {
   if (process.platform === 'win32') {
-    try {
-      execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 0 /f', { stdio: 'ignore' });
-      console.log('[SECURE BROWSER] Task Manager restored via Registry.');
-    } catch (e) {
-      console.warn('[SECURE BROWSER] Failed to restore Task Manager.');
+    if (process.env.ALLOW_REGISTRY_CHANGE === '1') {
+      try {
+        execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 0 /f', { stdio: 'ignore' });
+        console.log('[SECURE BROWSER] Task Manager restored via Registry.');
+      } catch (e) {
+        console.warn('[SECURE BROWSER] Failed to restore Task Manager.');
+      }
+    } else {
+      console.log('[SECURE BROWSER] Skipping registry restoration (ALLOW_REGISTRY_CHANGE not set).');
     }
   }
 }
@@ -279,8 +307,9 @@ async function createWindow() {
     resizable: false,
     show: true,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
   splashWindow.loadFile(path.join(__dirname, 'splash.html'));
@@ -295,25 +324,41 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webviewTag: true,
+      webviewTag: false,
+      preload: path.join(__dirname, 'preload.js'),
       devTools: process.env.NODE_ENV === 'development' // Disable DevTools in production
     }
   });
 
-  // Intercept and prevent "Right Click" context menu globally
-  mainWindow.hookWindowMessage(278, function (e) {
-    mainWindow.setEnabled(false);
-    setTimeout(() => {
-      mainWindow.setEnabled(true);
-    }, 100);
-    return true;
+  // Intercept and prevent context menu via webContents instead of low-level window hooks
+  // This avoids manipulating window enabled state and prevents focus/interaction side-effects.
+  mainWindow.webContents.on('context-menu', (event) => {
+    try {
+      event.preventDefault();
+    } catch (e) {
+      // If event doesn't support preventDefault, just ignore
+    }
   });
 
-  // Aggressive Kiosk Enforcement: Steal focus back immediately if lost
-  // This prevents 3-finger swipes (Task View) or Alt+Tab from keeping focus
+  // Aggressive Kiosk Enforcement: Soft focus recovery with threshold to avoid loops
+  let blurCount = 0;
+  let lastBlur = 0;
   mainWindow.on('blur', () => {
-    if (mainWindow) {
-      mainWindow.focus();
+    const now = Date.now();
+    if (now - lastBlur > 3000) {
+      blurCount = 0;
+    }
+    blurCount += 1;
+    lastBlur = now;
+
+    // Only forcibly refocus if there are repeated blurs within a short time window
+    if (blurCount >= 3) {
+      if (mainWindow) mainWindow.focus();
+    } else {
+      // gentle attempt after a short delay
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+      }, 400);
     }
   });
 
@@ -330,21 +375,11 @@ async function createWindow() {
   });
 
   // Strip X-Frame-Options to allow embedding any site in the webview
+  // Preserve response headers — do NOT strip CSP or X-Frame-Options (keeps browser protections intact).
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    const headers = { ...details.responseHeaders };
-    
-    // Remove headers that prevent iframe/webview embedding
-    const headersToRemove = ['x-frame-options', 'X-Frame-Options', 'content-security-policy', 'Content-Security-Policy'];
-    
-    headersToRemove.forEach(header => {
-      if (headers[header]) {
-        delete headers[header];
-      }
-    });
-
     callback({
       cancel: false,
-      responseHeaders: headers
+      responseHeaders: details.responseHeaders
     });
   });
 
@@ -359,14 +394,11 @@ async function createWindow() {
     }
   });
 
-  // Automatically grant screen sharing permissions for the exam monitor (Diagnostics)
+  // Require explicit user consent for display media requests; do not auto-grant.
   mainWindow.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
-    desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
-      // Grant access to the first screen found automatically
-      callback({ video: sources[0] });
-    }).catch((err) => {
-      console.log('Error getting screen sources', err);
-    });
+    console.warn('Display media request received; denying by default for security.', request);
+    // Deny by default. Renderer should ask user and provide a secure, validated flow.
+    callback({});
   });
 
   const isDev = !app.isPackaged;
@@ -495,12 +527,20 @@ function handleCustomUrl(url) {
     urlPath = urlPath.slice(0, -1);
   }
   
-  // Also pass the URL as a query param just in case we need to debug it inside React
+  // Validate allowed deep-link prefixes to avoid arbitrary injection via the fragment.
+  const allowedPrefixes = ['/test/', '/kiosk-login', '/admin', '/reports'];
+  const isAllowed = allowedPrefixes.some(p => urlPath === p || urlPath.startsWith(p));
+  if (!isAllowed) {
+    console.warn('Blocked disallowed deep-link:', url);
+    urlPath = '/kiosk-login';
+  }
+
+  // Load only the sanitized fragment; do NOT pass the rawUrl into the renderer.
   const isDev = !app.isPackaged;
   if (isDev) {
-    mainWindow.loadURL(`http://localhost:5173/#${urlPath}?rawUrl=${encodeURIComponent(url)}`);
+    mainWindow.loadURL(`http://localhost:5173/#${urlPath}`);
   } else {
-    mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#${urlPath}?rawUrl=${encodeURIComponent(url)}`);
+    mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#${urlPath}`);
   }
 }
 
@@ -522,49 +562,58 @@ app.on('ready', () => {
   screen.on('display-removed', manageSecondaryMonitors);
 
   // SECURE EXAM FEATURES: Hook and disable common shortcuts
+  // SECURE EXAM FEATURES: Register critical shortcuts only when explicitly allowed
+  // For safety, only enable these in packaged kiosk deployments and when the
+  // environment variable `ALLOW_SHORTCUT_BLOCK=1` is set by the deployment tooling.
+  if (app.isPackaged && process.env.ALLOW_SHORTCUT_BLOCK === '1') {
+    try {
+      // Attempt to register a minimal set of shortcuts useful for kiosk enforcement.
+      globalShortcut.register('CommandOrControl+Shift+Q', () => {
+        // Developer kill switch remains available in managed builds
+        app.quit();
+      });
 
-  // 1. Prevent Alt+Tab / Ctrl+Esc equivalent by strictly capturing them if possible,
-  // Note: True OS-level hooks require native modules, but kiosk mode handles most of this.
-  globalShortcut.register('Alt+Tab', () => {
-    if (mainWindow) mainWindow.focus();
-  });
-  globalShortcut.register('Super+Tab', () => {
-    if (mainWindow) mainWindow.focus();
-  });
+      // Block refresh shortcuts in kiosk builds
+      globalShortcut.register('F5', () => console.log('Refresh blocked'));
+      globalShortcut.register('CommandOrControl+R', () => console.log('Refresh blocked'));
 
-  // 2. Secret Dev Kill Switch (Ctrl+Shift+Q) to close the app during development
-  globalShortcut.register('CommandOrControl+Shift+Q', () => {
-    app.quit();
-  });
+      // Block DevTools and common close combinations
+      globalShortcut.register('F12', () => console.log('DevTools blocked'));
+      globalShortcut.register('CommandOrControl+Shift+I', () => console.log('DevTools blocked'));
+      globalShortcut.register('CommandOrControl+W', () => console.log('Close window blocked'));
+      globalShortcut.register('Alt+F4', () => console.log('Alt+F4 blocked'));
+    } catch (e) {
+      console.warn('[SECURE BROWSER] Failed to register some global shortcuts:', e);
+    }
+  } else {
+    console.log('[SECURE BROWSER] Skipping globalShortcut registrations (not packaged or ALLOW_SHORTCUT_BLOCK not set).');
+  }
+});
 
-  // 3. Disable refreshing (F5, Ctrl+R)
-  globalShortcut.register('F5', () => {
-    console.log('Refresh blocked');
-  });
-  globalShortcut.register('CommandOrControl+R', () => {
-    console.log('Refresh blocked');
-  });
+// IPC handler for renderer to request screen capture with explicit user consent
+ipcMain.handle('request-screen-capture', async (event) => {
+  try {
+    const resp = dialog.showMessageBoxSync({
+      type: 'question',
+      buttons: ['Allow', 'Deny'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Allow Screen Capture?',
+      message: 'Do you want to allow screen capture for this exam session? Only allow if instructed by proctor.'
+    });
 
-  // 4. Disable Print Screen (Windows/Linux only)
-  globalShortcut.register('PrintScreen', () => {
-    console.log('Screenshot blocked');
-  });
-
-  // 5. Disable App Closing shortcuts (except kill switch)
-  globalShortcut.register('Alt+F4', () => {
-    console.log('Alt+F4 blocked');
-  });
-  globalShortcut.register('CommandOrControl+W', () => {
-    console.log('Close window blocked');
-  });
-
-  // 6. Disable DevTools shortcuts manually just in case
-  globalShortcut.register('F12', () => {
-    console.log('DevTools blocked');
-  });
-  globalShortcut.register('CommandOrControl+Shift+I', () => {
-    console.log('DevTools blocked');
-  });
+    if (resp === 0) {
+      const sources = await desktopCapturer.getSources({ types: ['screen'] });
+      if (sources && sources[0]) {
+        return { allowed: true, sourceId: sources[0].id };
+      }
+      return { allowed: false };
+    }
+    return { allowed: false };
+  } catch (e) {
+    console.warn('Error during screen-capture request', e);
+    return { allowed: false };
+  }
 });
 
 // Unregister shortcuts and restore registry when the app is quitting
