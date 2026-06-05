@@ -66,7 +66,7 @@ const AdminDashboard = () => {
   
   const [currentQuestion, setCurrentQuestion] = useState({ text: '', options: ['', '', '', ''], correctOption: 0 });
 
-  useEffect(() => {
+  const fetchDashboardData = () => {
     getAllTests()
       .then(data => setTests(data))
       .catch(err => console.error("Error loading tests:", err));
@@ -74,6 +74,21 @@ const AdminDashboard = () => {
     getAllReports()
       .then(data => setReports(data))
       .catch(err => console.error("Error loading reports:", err));
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    
+    // Auto-refresh when tab gains focus
+    window.addEventListener('focus', fetchDashboardData);
+    
+    // Auto-refresh every 30 seconds to keep data fresh
+    const interval = setInterval(fetchDashboardData, 30000);
+    
+    return () => {
+      window.removeEventListener('focus', fetchDashboardData);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleDeleteTest = async (id) => {
@@ -289,15 +304,7 @@ const AdminDashboard = () => {
   return (
     <>
       <div className="dashboard-container">
-        <div className="modern-tabs">
-          <button className={`modern-tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}><LayoutTemplate size={16} /> Overview</button>
-          <button className={`modern-tab ${activeTab === 'tests' ? 'active' : ''}`} onClick={() => setActiveTab('tests')}><ClipboardList size={16} /> Manage Tests</button>
-          <button className={`modern-tab ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}><Users size={16} /> Candidates</button>
-          <button className={`modern-tab ${activeTab === 'builder' ? 'active' : ''}`} onClick={() => setActiveTab('builder')}><Plus size={16} /> Test Builder</button>
-          <button className={`modern-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><Settings size={16} /> Settings</button>
-        </div>
-
-      <div className="dashboard-content-area">
+        <div className="dashboard-content-area">
         {/* ... dashboard overview view ... */}
         {activeTab === 'dashboard' && (
           <div className="dashboard-home-view fade-in">
@@ -326,20 +333,20 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="widgets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+            <div className="widgets-grid">
               <div className="content-card">
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="card-header flex-header">
                   <h2>Recent Tests</h2>
                   <button className="btn-text" onClick={() => setActiveTab('tests')} style={{ color: '#0056b3', fontWeight: '600' }}>View All</button>
                 </div>
-                <div style={{ padding: '0 30px 20px 30px' }}>
+                <div className="widget-card-body">
                   {tests.slice(0, 3).map(test => (
-                    <div key={test.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f3f5' }}>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{test.name}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{test.questions?.length || 0} questions • {test.duration / 60} mins</div>
+                    <div key={test.id} className="widget-list-item">
+                      <div className="widget-item-info">
+                        <div className="widget-item-title">{test.name}</div>
+                        <div className="widget-item-subtitle">{test.questions?.length || 0} questions • {test.duration / 60} mins</div>
                       </div>
-                      <div className="copy-link-wrapper" style={{ width: '220px' }}>
+                      <div className="widget-item-action">
                         <button className="btn-primary btn-sm" onClick={() => openEmailModal(test)}><Mail size={14}/> Send</button>
                       </div>
                     </div>
@@ -349,18 +356,18 @@ const AdminDashboard = () => {
               </div>
 
               <div className="content-card">
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="card-header flex-header">
                   <h2>Recent Candidate Activity</h2>
                   <button className="btn-text" onClick={() => setActiveTab('reports')} style={{ color: '#0056b3', fontWeight: '600' }}>View All</button>
                 </div>
-                <div style={{ padding: '0 30px 20px 30px' }}>
+                <div className="widget-card-body">
                   {reports.slice(0, 3).map((candidate, idx) => (
-                    <div key={candidate._id || candidate.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f3f5' }}>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{candidate.candidateName}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Score: {candidate.score}</div>
+                    <div key={candidate._id || candidate.id || idx} className="widget-list-item">
+                      <div className="widget-item-info">
+                        <div className="widget-item-title">{candidate.candidateName}</div>
+                        <div className="widget-item-subtitle">Score: {candidate.score}</div>
                       </div>
-                      <div>
+                      <div className="widget-item-action">
                         <span className={`status-pill ${candidate.status.toLowerCase()}`} style={{ fontSize: '11px', padding: '4px 8px' }}>
                           {candidate.status}
                         </span>
@@ -377,12 +384,12 @@ const AdminDashboard = () => {
         {/* ... tests view ... */}
         {activeTab === 'tests' && (
           <div className="content-card fade-in">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-header flex-header">
               <div>
                 <h2>Created Tests</h2>
                 <p className="text-secondary">Dispatch secure emails or generate secure token links.</p>
               </div>
-              <button className="btn-primary btn-sm" onClick={() => setActiveTab('builder')} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', fontSize: '13px' }}>
+              <button className="btn-primary btn-sm" onClick={() => setActiveTab('builder')} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', fontSize: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <Plus size={14} /> New Test
               </button>
             </div>

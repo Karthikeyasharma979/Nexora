@@ -670,22 +670,49 @@
   .ti-header-left, .ti-header-right {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
   }
   
   .ti-logo {
     margin-right: 10px;
   }
+  
+  .ti-btn-finish {
+    width: 100%;
+    margin-top: 5px;
+  }
 
   .ti-nav {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
     height: auto;
-    padding: 10px;
-    gap: 10px;
+    padding: 15px;
+    gap: 15px;
+  }
+
+  /* Make the section dropdown and info button row take full width so pagination drops below */
+  .ti-nav > div:first-child {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .ti-pagination-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  .ti-pagination {
+    width: 100%;
+    justify-content: center;
   }
   
   .ti-nav-right {
     width: 100%;
     justify-content: space-between;
+    margin-top: 5px;
   }
 
   .ti-main {
@@ -707,11 +734,13 @@
 
   .ti-finish-panel {
     width: 100%;
+    max-width: 100vw;
   }
 
   .ti-summary-section {
     flex-direction: column;
     gap: 20px;
+    margin-bottom: 20px;
   }
 
   .ti-donut-chart {
@@ -724,5 +753,34 @@
     left: 20px;
     padding: 10px 16px;
     font-size: 12px;
+  }
+
+  .ti-finish-overlay {
+    top: 0; /* Cover entire screen on mobile */
+  }
+
+  .ti-finish-body {
+    padding: 15px;
+  }
+
+  .ti-filter-dropdown {
+    width: calc(100vw - 20px);
+    left: 10px;
+    transform: none;
+  }
+
+  .ti-footer {
+    flex-direction: column;
+    height: auto;
+    padding: 15px;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .ti-footer-left, .ti-footer-center, .ti-footer-right {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 }

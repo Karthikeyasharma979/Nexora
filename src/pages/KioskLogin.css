@@ -697,4 +697,26 @@
     gap: 1rem;
     text-align: center;
   }
+
+  .kiosk-left-panel, .kiosk-right-panel {
+    padding: 1rem;
+  }
+
+  .kiosk-card-glass, .diagnostics-glass {
+    padding: 1.5rem;
+  }
+
+  .chrome-prompt-overlay {
+    top: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-width: calc(100vw - 1rem);
+  }
+
+  .system-summary-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
 }

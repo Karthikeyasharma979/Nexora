@@ -246,3 +246,29 @@
   font-size: 16px;
   margin: 0;
 }
+
+/* Mobile Responsiveness for Proctoring HUD */
+@media (max-width: 768px) {
+  .proctoring-hud-container {
+    bottom: auto;
+    top: 80px;
+    right: 15px;
+    align-items: flex-end;
+  }
+
+  .floating-orb {
+    width: 140px;
+    height: 95px;
+  }
+
+  .floating-orb.minimized {
+    width: 60px;
+    height: 40px;
+  }
+
+  .proctoring-toast {
+    max-width: 250px;
+    font-size: 12px;
+    padding: 10px 14px;
+  }
+}

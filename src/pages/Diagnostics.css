@@ -726,3 +726,57 @@
 .diag-monitor-footer {
   padding: 0 30px 30px;
 }
+
+/* Mobile Responsiveness for Diagnostics */
+@media (max-width: 900px) {
+  .diag-main {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .diag-left {
+    padding-right: 0;
+    margin-bottom: 30px;
+  }
+
+  .diag-right {
+    padding-left: 0;
+  }
+
+  .diag-stepper {
+    flex-direction: row;
+    width: 100%;
+    margin: 20px 0;
+    gap: 20px;
+  }
+
+  .diag-line {
+    top: 50%;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    width: 100%;
+    height: 2px;
+    transform: translateY(-50%);
+  }
+
+  .diag-video-container {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .diag-stats {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .diag-monitor-body {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .diag-monitor-icon {
+    width: 100%;
+    margin-top: 20px;
+  }
+}
