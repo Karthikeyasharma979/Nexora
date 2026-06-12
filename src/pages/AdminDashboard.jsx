@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAllTests, saveTest, getAllReports, generateInviteLink, sendEmailInvite } from '../utils/db';
-import { ClipboardList, Users, AlertOctagon, Plus, Copy, Eye, EyeOff, LayoutTemplate, Settings, Trash2, Edit2, Mail, X, Send, CheckCircle } from 'lucide-react';
+import { ClipboardList, Users, AlertOctagon, Plus, Copy, Eye, EyeOff, LayoutTemplate, Settings, Trash2, Edit2, Mail, X, Send, CheckCircle, Link } from 'lucide-react';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -418,6 +418,9 @@ const AdminDashboard = () => {
                           </button>
                           <button className="btn-action token-btn" onClick={() => handleGenerateSecureLink(test.id)} title="Generate Token Link">
                             <Copy size={16} /> Token
+                          </button>
+                          <button className="btn-action token-btn" style={{ backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => copyToClipboard(getTestLink(test.id))} title="Copy Direct Link">
+                            <Link size={16} /> Direct Link
                           </button>
                         </div>
                       </td>
