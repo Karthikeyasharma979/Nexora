@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Cloud, Clock, Maximize, Settings, ChevronDown, 
@@ -93,7 +93,10 @@ const TestInterface = () => {
   useEffect(() => {
     if (testDetails && testDetails.questions[currentQuestionIdx]) {
       const qId = testDetails.questions[currentQuestionIdx].id;
-      setViewed(prev => ({ ...prev, [qId]: true }));
+      setViewed(prev => {
+        if (prev[qId]) return prev;
+        return { ...prev, [qId]: true };
+      });
     }
 
     // Auto-scroll the active pagination button into view
@@ -120,7 +123,7 @@ const TestInterface = () => {
     return () => clearInterval(timer);
   }, [testDetails]);
 
-  const handleSubmitExam = async (status = 'Completed', terminationReason = null) => {
+  const handleSubmitExam = useCallback(async (status = 'Completed', terminationReason = null) => {
     if (!testDetails) return;
     
     const candidateName = sessionStorage.getItem('candidateName') || 'Harry';
@@ -153,7 +156,7 @@ const TestInterface = () => {
         terminationReason: terminationReason
       } 
     });
-  };
+  }, [testDetails, testId, answers, navigate]);
 
   useEffect(() => {
     const handleTermination = (e) => {
@@ -162,7 +165,13 @@ const TestInterface = () => {
     };
     window.addEventListener('test-terminated', handleTermination);
     return () => window.removeEventListener('test-terminated', handleTermination);
-  }, [testDetails, answers, navigate, testId]);
+  }, [handleSubmitExam]);
+
+  useEffect(() => {
+    if (testDetails && timeRemaining === 0) {
+      handleSubmitExam('Completed', 'Time up');
+    }
+  }, [timeRemaining, testDetails, handleSubmitExam]);
 
   const handleSelectOption = (optText) => {
     if (!testDetails) return;

@@ -427,6 +427,10 @@ app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD;
   
+  if (!adminPassword) {
+    return res.status(500).json({ error: 'Admin password not configured on server' });
+  }
+  
   if (password === adminPassword) {
     const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '12h' });
     return res.json({ token });
