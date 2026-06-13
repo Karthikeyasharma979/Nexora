@@ -353,7 +353,7 @@ app.get('/api/reports', authenticateAdmin, async (req, res) => {
 // 7. Save a report
 app.post('/api/reports', async (req, res) => {
   try {
-    const { candidateName, candidateEmail, testId, answers, status, violations } = req.body;
+    const { candidateName, candidateEmail, testId, answers, status, violations, origin } = req.body;
     if (!candidateName || !testId || !answers || !status) {
       return res.status(400).json({ error: 'Missing required fields for report' });
     }
@@ -362,6 +362,7 @@ app.post('/api/reports', async (req, res) => {
     let correctCount = 0;
     let totalQuestions = 0;
     let incorrectQuestionsText = [];
+    let correctAnswers = {};
     
     let test;
     if (useInMemoryDb) {
@@ -374,6 +375,7 @@ app.post('/api/reports', async (req, res) => {
       totalQuestions = test.questions.length;
       test.questions.forEach(q => {
         const correctText = q.options[q.correctOption];
+        correctAnswers[q.id] = correctText;
         if (answers[q.id] === correctText) {
           correctCount++;
         } else {
@@ -420,10 +422,10 @@ app.post('/api/reports', async (req, res) => {
       
       // Send Email asynchronously
       if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
-        sendResultEmail(candidateEmail, candidateName, savedReport._id, test ? test.name : testId, score, aiRecommendation).catch(err => console.error("Email send failed:", err));
+        sendResultEmail(candidateEmail, candidateName, savedReport._id, test ? test.name : testId, score, aiRecommendation, origin).catch(err => console.error("Email send failed:", err));
       }
       
-      return res.status(201).json(savedReport);
+      return res.status(201).json({ ...savedReport, correctAnswers });
     }
 
     const newReport = new Report(newReportData);
@@ -431,10 +433,10 @@ app.post('/api/reports', async (req, res) => {
     
     // Send Email asynchronously
     if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
-      sendResultEmail(candidateEmail, candidateName, newReport._id.toString(), test ? test.name : testId, score, aiRecommendation).catch(err => console.error("Email send failed:", err));
+      sendResultEmail(candidateEmail, candidateName, newReport._id.toString(), test ? test.name : testId, score, aiRecommendation, origin).catch(err => console.error("Email send failed:", err));
     }
     
-    res.status(201).json({ ...newReport.toJSON(), score });
+    res.status(201).json({ ...newReport.toJSON(), score, correctAnswers });
   } catch (error) {
     console.error('Error saving report:', error);
     res.status(500).json({ error: 'Server error saving report' });
@@ -442,7 +444,7 @@ app.post('/api/reports', async (req, res) => {
 });
 
 // Helper for sending result email
-async function sendResultEmail(email, name, reportId, testName, score, aiRecommendation) {
+async function sendResultEmail(email, name, reportId, testName, score, aiRecommendation, origin) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -451,7 +453,7 @@ async function sendResultEmail(email, name, reportId, testName, score, aiRecomme
     }
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = origin || process.env.FRONTEND_URL || 'http://localhost:5173';
   const resultLink = `${frontendUrl}/#/result/${reportId}`;
 
   const mailOptions = {
@@ -500,6 +502,28 @@ app.get('/api/reports/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching report by ID:', error);
     res.status(500).json({ error: 'Server error fetching report' });
+  }
+});
+
+// 7b. Delete a report by ID
+app.delete('/api/reports/:id', authenticateAdmin, async (req, res) => {
+  try {
+    if (useInMemoryDb) {
+      const index = inMemoryReports.findIndex(r => r._id === req.params.id);
+      if (index === -1) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+      inMemoryReports.splice(index, 1);
+      return res.json({ success: true });
+    }
+    const deletedReport = await Report.findByIdAndDelete(req.params.id);
+    if (!deletedReport) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error(`Error deleting report ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Server error deleting report' });
   }
 });
 

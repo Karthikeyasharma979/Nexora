@@ -74,13 +74,29 @@ export const saveReport = async (reportData) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(reportData),
+      body: JSON.stringify({ ...reportData, origin: window.location.origin }),
     });
     if (!response.ok) throw new Error('Failed to save report');
     return await response.json();
   } catch (error) {
     console.error("Error saving report:", error);
     return null;
+  }
+};
+
+export const deleteReport = async (reportId) => {
+  try {
+    const response = await fetch(`${API_URL}/reports/${reportId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error deleting report ${reportId} from backend:`, error);
+    return false;
   }
 };
 

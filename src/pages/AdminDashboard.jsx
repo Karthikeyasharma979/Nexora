@@ -105,6 +105,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteReport = async (id) => {
+    if (window.confirm("Are you sure you want to delete this proctoring report? This action cannot be undone.")) {
+      try {
+        const { deleteReport } = await import('../utils/db');
+        await deleteReport(id);
+        const data = await getAllReports();
+        setReports(data);
+      } catch (err) {
+        console.error("Error deleting report:", err);
+        alert("Failed to delete report.");
+      }
+    }
+  };
+
   const handleEditTest = (test) => {
     setEditingTestId(test.id);
     setNewTestName(test.name);
@@ -474,6 +488,9 @@ const AdminDashboard = () => {
                         <td>
                           <button className="btn-text" onClick={() => setExpandedCandidate(expandedCandidate === (candidate._id || candidate.id || idx) ? null : (candidate._id || candidate.id || idx))}>
                             {expandedCandidate === (candidate._id || candidate.id || idx) ? <><EyeOff size={16} /> Hide Logs</> : <><Eye size={16} /> View Logs</>}
+                          </button>
+                          <button className="icon-btn-action" style={{ color: '#ef4444', marginLeft: '10px' }} onClick={() => handleDeleteReport(candidate._id || candidate.id)} title="Delete Report">
+                            <Trash2 size={16} />
                           </button>
                         </td>
                       </tr>

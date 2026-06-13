@@ -129,8 +129,9 @@
   align-items: center;
   position: relative;
   flex: 1;
+  min-width: 0;
   margin: 0 20px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ti-pagination {
@@ -139,7 +140,8 @@
   gap: 0;
   overflow-x: auto;
   padding: 5px 0;
-  width: 100%;
+  flex-shrink: 1;
+  min-width: 0;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
@@ -158,6 +160,9 @@
   color: var(--mettl-text-secondary);
   cursor: pointer;
   padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ti-page-btn:disabled {
@@ -207,14 +212,15 @@
   box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
 }
 
-.ti-pagination .ti-filter-tools {
+.ti-filter-tools {
   display: flex;
   align-items: center;
-  margin-left: 10px;
+  margin-left: auto;
+  padding-left: 15px;
   gap: 5px;
 }
 
-.ti-pagination .ti-icon-btn {
+.ti-filter-tools .ti-icon-btn {
   color: var(--mettl-blue);
   border: 1px solid var(--mettl-gray-border);
   border-radius: 4px;

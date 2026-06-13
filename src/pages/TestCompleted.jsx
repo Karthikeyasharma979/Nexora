@@ -12,6 +12,7 @@ const TestCompleted = () => {
   const candidateName = location.state?.candidateName || 'Candidate';
   const testDetails = location.state?.testDetails || null;
   const answers = location.state?.answers || {};
+  const correctAnswers = location.state?.correctAnswers || {};
   const status = location.state?.status || 'Completed';
   const terminationReason = location.state?.terminationReason || 'Your exam was forcefully terminated due to excessive proctoring violations.';
 
@@ -101,9 +102,10 @@ const TestCompleted = () => {
             </div>
             <div className="tc-report-body">
               {testDetails.questions.map((q, idx) => {
-                const candidateAnswerIdx = answers[q.id];
-                const isCorrect = candidateAnswerIdx === q.correctOption;
-                const isAttempted = candidateAnswerIdx !== undefined;
+                const candidateAnswerText = answers[q.id];
+                const correctText = correctAnswers[q.id];
+                const isCorrect = candidateAnswerText !== undefined && candidateAnswerText === correctText;
+                const isAttempted = candidateAnswerText !== undefined;
 
                 return (
                   <div key={q.id} className="tc-report-question">
@@ -118,13 +120,13 @@ const TestCompleted = () => {
                     <div className="tc-report-options">
                       {q.options.map((opt, optIdx) => {
                         let optClass = 'tc-report-opt';
-                        if (optIdx === q.correctOption) optClass += ' correct';
-                        else if (optIdx === candidateAnswerIdx && !isCorrect) optClass += ' incorrect';
+                        if (opt === correctText) optClass += ' correct';
+                        else if (opt === candidateAnswerText && !isCorrect) optClass += ' incorrect';
 
                         return (
                           <div key={optIdx} className={optClass}>
                             {opt}
-                            {optIdx === candidateAnswerIdx && <span className="tc-report-your-ans"> (Your Answer)</span>}
+                            {opt === candidateAnswerText && <span className="tc-report-your-ans"> (Your Answer)</span>}
                           </div>
                         );
                       })}

@@ -154,6 +154,7 @@ const TestInterface = () => {
         candidateName: candidateName,
         testDetails: testDetails,
         answers: answers,
+        correctAnswers: res?.correctAnswers || {},
         status: status,
         terminationReason: terminationReason
       } 
@@ -320,8 +321,11 @@ const TestInterface = () => {
         </div>
         
         <div className="ti-pagination-wrapper">
+          <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
+            <ChevronLeft size={18} />
+          </button>
+
           <div className="ti-pagination">
-            <button type="button" className="ti-page-btn" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>&lt;</button>
             {Array.from({ length: sections[currentSectionIndex].count }).map((_, i) => {
               const idx = sections[currentSectionIndex].startIndex + i;
               const q = testDetails.questions[idx];
@@ -345,18 +349,21 @@ const TestInterface = () => {
                 </button>
               );
             })}
-            <button type="button" className="ti-page-btn" disabled={currentQuestionIdx === totalQ - 1} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>&gt;</button>
-            
-            <div className="ti-filter-tools">
-              <button type="button" className="ti-icon-btn" onClick={() => setShowFilterDropdown(!showFilterDropdown)}>
-                <Grid size={16} />
-              </button>
-              <button type="button" className="ti-icon-btn">
-                <Calculator size={16} />
-              </button>
-            </div>
-            <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
           </div>
+
+          <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === totalQ - 1} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>
+            <ChevronRight size={18} />
+          </button>
+          
+          <div className="ti-filter-tools">
+            <button type="button" className="ti-icon-btn" onClick={() => setShowFilterDropdown(!showFilterDropdown)}>
+              <Grid size={16} />
+            </button>
+            <button type="button" className="ti-icon-btn">
+              <Calculator size={16} />
+            </button>
+          </div>
+          <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
 
           {/* Filter Dropdown Popup */}
           {showFilterDropdown && (
