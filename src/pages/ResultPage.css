@@ -103,20 +103,46 @@
   margin-bottom: 30px;
 }
 
-.rp-score-circle {
+.rp-score-circle-container {
+  position: relative;
   width: 120px;
   height: 120px;
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-progress-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(-90deg);
+}
+
+.rp-progress-ring-bg {
+  stroke: #e2e8f0;
+}
+
+.rp-progress-ring-fill {
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.rp-score-circle-container.success .rp-progress-ring-fill { stroke: #10b981; }
+.rp-score-circle-container.warning .rp-progress-ring-fill { stroke: #f59e0b; }
+.rp-score-circle-container.danger .rp-progress-ring-fill { stroke: #ef4444; }
+
+.rp-score-circle-container.success .rp-score-content { color: #10b981; }
+.rp-score-circle-container.warning .rp-score-content { color: #f59e0b; }
+.rp-score-circle-container.danger .rp-score-content { color: #ef4444; }
+
+.rp-score-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 6px solid #e2e8f0;
+  z-index: 1;
 }
-
-.rp-score-circle.success { border-color: #10b981; color: #10b981; }
-.rp-score-circle.warning { border-color: #f59e0b; color: #f59e0b; }
-.rp-score-circle.danger { border-color: #ef4444; color: #ef4444; }
 
 .rp-score-number {
   font-size: 32px;

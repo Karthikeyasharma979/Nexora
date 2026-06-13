@@ -76,9 +76,23 @@ const ResultPage = () => {
           </div>
 
           <div className="rp-score-section">
-            <div className={`rp-score-circle ${colorClass}`}>
-              <span className="rp-score-number">{percentage}%</span>
-              <span className="rp-score-text">Score</span>
+            <div className={`rp-score-circle-container ${colorClass}`}>
+              <svg className="rp-progress-ring" width="120" height="120">
+                <circle className="rp-progress-ring-bg" strokeWidth="6" cx="60" cy="60" r="54" fill="transparent" />
+                <circle 
+                  className="rp-progress-ring-fill" 
+                  strokeWidth="6" 
+                  cx="60" 
+                  cy="60" 
+                  r="54" 
+                  fill="transparent" 
+                  style={{ strokeDasharray: `${2 * Math.PI * 54}`, strokeDashoffset: `${2 * Math.PI * 54 * (1 - percentage / 100)}` }}
+                />
+              </svg>
+              <div className="rp-score-content">
+                <span className="rp-score-number">{percentage}%</span>
+                <span className="rp-score-text">Score</span>
+              </div>
             </div>
             
             <div className="rp-stats">

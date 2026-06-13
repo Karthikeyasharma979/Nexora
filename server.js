@@ -361,6 +361,7 @@ app.post('/api/reports', async (req, res) => {
     // Evaluate score securely on the server
     let correctCount = 0;
     let totalQuestions = 0;
+    let incorrectQuestionsText = [];
     
     let test;
     if (useInMemoryDb) {
@@ -375,6 +376,8 @@ app.post('/api/reports', async (req, res) => {
         const correctText = q.options[q.correctOption];
         if (answers[q.id] === correctText) {
           correctCount++;
+        } else {
+          incorrectQuestionsText.push(q.text);
         }
       });
     }
@@ -387,10 +390,17 @@ app.post('/api/reports', async (req, res) => {
     if (githubToken) {
       try {
         const client = new OpenAI({ baseURL: "https://models.github.ai/inference", apiKey: githubToken });
+        let userPrompt = `Student scored ${score}. Total Violations: ${violations ? violations.length : 0}. `;
+        if (incorrectQuestionsText.length > 0) {
+          userPrompt += `The student got the following questions wrong: "${incorrectQuestionsText.join('" and "')}". Please specify which areas they need to improve in and give an actionable recommendation.`;
+        } else {
+          userPrompt += `Give a brief recommendation.`;
+        }
+        
         const aiResponse = await client.chat.completions.create({
           messages: [
-            { role: "system", content: "You are an expert test evaluator. Provide a brief (2-3 sentences), constructive recommendation for a student based on their test score and violations (if any). Use encouraging tone." },
-            { role: "user", content: `Student scored ${score}. Total Violations: ${violations ? violations.length : 0}. Give a brief recommendation.` }
+            { role: "system", content: "You are an expert test evaluator. Provide a brief (2-3 sentences), constructive recommendation for a student based on their test score and violations (if any). If they got questions wrong, mention the general topics or areas they should focus on studying based on those questions. Use an encouraging tone." },
+            { role: "user", content: userPrompt }
           ],
           model: "gpt-4o"
         });
