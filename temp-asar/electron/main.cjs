@@ -15,11 +15,16 @@ const { exec, execSync } = require('child_process');
 // Everything else on the computer will be forcefully terminated.
 const WHITELIST_APPS = [
   'explorer',                   // Windows Taskbar & Desktop
+  'Taskmgr',                    // Task Manager (even though we disable it)
+  'cmd',                        // Command Prompt
+  'powershell',                 // PowerShell
   'SearchApp',                  // Windows Search
   'StartMenuExperienceHost',    // Windows Start Menu
   'ShellExperienceHost',        // Windows UI
   'TextInputHost',              // Touch Keyboard/Emoji Panel
-  'nexora-secure-browser'       // Our own app
+  'Code',                       // VS Code (for development only)
+  'nexora-secure-browser',      // Our own app
+  'electron'                    // Electron dev host
 ];
 
 function detectCompromisedEnvironment() {
@@ -153,34 +158,39 @@ function sanitizeEnvironment(isStartup = false) {
 }
 
 function executeScorchedEarth(whitelistString) {
+  // Safer behavior: do NOT force-kill processes. Instead notify the user which apps
+  // would be closed and recommend closing them manually. This avoids data loss and
+  // prevents abusive behavior.
   try {
-    // Strictly kill prohibited applications silently to prevent dialog loops and enforce exam security.
-    const psKillScript = `
+    const psDetectScript = `
       $whitelist = @(${whitelistString})
       $myPid = ${process.pid}
-      Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $whitelist -notcontains $_.Name -and $_.Id -ne $myPid } | Stop-Process -Force -ErrorAction SilentlyContinue
-
-      # Close File Explorer folder windows (since 'explorer' process is whitelisted for the taskbar)
-      try {
-        $shell = New-Object -ComObject Shell.Application
-        foreach ($win in $shell.Windows()) {
-          $win.Quit()
-        }
-      } catch {}
+      $badApps = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $whitelist -notcontains $_.Name -and $_.Id -ne $myPid }
+      if ($badApps.Count -gt 0) { $badApps | Select-Object -ExpandProperty Name -Unique }
     `;
-    const encoded = Buffer.from(psKillScript, 'utf16le').toString('base64');
+    const encoded = Buffer.from(psDetectScript, 'utf16le').toString('base64');
     exec(`powershell.exe -NoProfile -EncodedCommand ${encoded}`, (err, stdout) => {
-      // Background apps killed silently.
+      const apps = stdout ? stdout.trim().split('\n').map(s => s.trim()).filter(s => s.length) : [];
+      if (apps.length > 0) {
+        dialog.showMessageBoxSync({
+          type: 'warning',
+          buttons: ['OK'],
+          title: 'Prohibited Applications Detected',
+          message: 'The following applications may interfere with the secure exam. Please close them manually:',
+          detail: apps.join(', ')
+        });
+      }
     });
   } catch (e) {
-    console.warn('[SECURE BROWSER] Could not enumerate or kill processes for detection.', e);
+    console.warn('[SECURE BROWSER] Could not enumerate processes for detection.', e);
   }
 }
 
 // --- EXTREME REGISTRY LOCKDOWN ---
 function disableTaskManager() {
   if (process.platform === 'win32') {
-    if (app.isPackaged) {
+    // Only modify registry if explicitly allowed via env var to avoid surprising changes.
+    if (process.env.ALLOW_REGISTRY_CHANGE === '1') {
       try {
         execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 1 /f', { stdio: 'ignore' });
         console.log('[SECURE BROWSER] Task Manager physically disabled via Registry.');
@@ -188,14 +198,14 @@ function disableTaskManager() {
         console.warn('[SECURE BROWSER] Could not disable Task Manager (may lack permissions).');
       }
     } else {
-      console.log('[SECURE BROWSER] Skipping Task Manager lock (Dev Mode).');
+      console.log('[SECURE BROWSER] Skipping registry changes to disable Task Manager (ALLOW_REGISTRY_CHANGE not set).');
     }
   }
 }
 
 function enableTaskManager() {
   if (process.platform === 'win32') {
-    if (app.isPackaged) {
+    if (process.env.ALLOW_REGISTRY_CHANGE === '1') {
       try {
         execSync('reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableTaskMgr /t REG_DWORD /d 0 /f', { stdio: 'ignore' });
         console.log('[SECURE BROWSER] Task Manager restored via Registry.');
@@ -203,7 +213,7 @@ function enableTaskManager() {
         console.warn('[SECURE BROWSER] Failed to restore Task Manager.');
       }
     } else {
-      console.log('[SECURE BROWSER] Skipping Task Manager restore (Dev Mode).');
+      console.log('[SECURE BROWSER] Skipping registry restoration (ALLOW_REGISTRY_CHANGE not set).');
     }
   }
 }
@@ -330,26 +340,26 @@ async function createWindow() {
     }
   });
 
-  // Block hardware back/forward commands (e.g. mouse buttons, 3-finger touchpad swipes on Windows)
-  mainWindow.on('app-command', (e, cmd) => {
-    if (cmd === 'browser-backward' || cmd === 'browser-forward') {
-      e.preventDefault();
-      console.log('Blocked app-command gesture:', cmd);
-    }
-  });
-
-  // Block swipe gestures on macOS trackpads
-  mainWindow.on('swipe', (e) => {
-    e.preventDefault();
-    console.log('Blocked macOS swipe gesture');
-  });
-
-  // Kiosk Focus Recovery: Relaxed to prevent OS freeze
+  // Aggressive Kiosk Enforcement: Soft focus recovery with threshold to avoid loops
+  let blurCount = 0;
+  let lastBlur = 0;
   mainWindow.on('blur', () => {
-    // Only attempt gentle refocus after a delay to allow native OS dialogues (like permissions) to breathe
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
-    }, 1500);
+    const now = Date.now();
+    if (now - lastBlur > 3000) {
+      blurCount = 0;
+    }
+    blurCount += 1;
+    lastBlur = now;
+
+    // Only forcibly refocus if there are repeated blurs within a short time window
+    if (blurCount >= 3) {
+      if (mainWindow) mainWindow.focus();
+    } else {
+      // gentle attempt after a short delay
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+      }, 400);
+    }
   });
 
   // Elevate window level to 'screen-saver' to block Task View overlays on Windows
@@ -375,10 +385,8 @@ async function createWindow() {
 
   // SECURE KIOSK: Prevent navigating away from the app
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    // Basic whitelist pattern (can be more restrictive)
-    const isAllowed = url.startsWith('http://localhost') || 
-                      url.startsWith('https://nexora-blik.vercel.app') || 
-                      url.startsWith('file://');
+    // Allow localhost, file paths, and deployed links (https)
+    const isAllowed = url.startsWith('http://localhost') || url.startsWith('file://') || url.startsWith('https://');
     
     if (!isAllowed) {
       event.preventDefault();
@@ -404,8 +412,8 @@ async function createWindow() {
       // In development, load the Vite dev server to the kiosk login route
       mainWindow.loadURL('http://localhost:5173/#/kiosk-login');
     } else {
-      // In production, load the local bundled app
-      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'kiosk-login' });
+      // In production, load the built static files and append the hash route
+      mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/kiosk-login`);
     }
   }
 
@@ -432,8 +440,38 @@ async function createWindow() {
           mainWindow.show();
           mainWindow.focus();
 
-          // Native browser watermark overlay removed to prevent double-watermarking. 
-          // ProctoringEngine.jsx already provides a detailed forensic DOM watermark.
+          // Initialize the native browser watermark overlay
+          const watermarkWindow = new BrowserWindow({
+            width: mainWindow.getBounds().width,
+            height: mainWindow.getBounds().height,
+            transparent: true,
+            frame: false,
+            alwaysOnTop: true,
+            parent: mainWindow,
+            hasShadow: false,
+            focusable: false,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true
+            }
+          });
+          
+          watermarkWindow.setIgnoreMouseEvents(true, { forward: true });
+          
+          // Match main window bounds and follow it
+          watermarkWindow.setBounds(mainWindow.getBounds());
+          mainWindow.on('resize', () => {
+            if (!watermarkWindow.isDestroyed()) watermarkWindow.setBounds(mainWindow.getBounds());
+          });
+          mainWindow.on('move', () => {
+            if (!watermarkWindow.isDestroyed()) watermarkWindow.setBounds(mainWindow.getBounds());
+          });
+
+          const watermarkText = `NEXORA SECURE BROWSER • ${new Date().toISOString().split('T')[0]}`;
+          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="13" fill="%23000000" opacity="0.08" transform="rotate(-30 150 100)">${watermarkText}</text></svg>`;
+          const svgWatermark = `data:image/svg+xml;base64,${Buffer.from(svgString).toString('base64')}`;
+          const html = `<html><body style="margin:0; overflow:hidden; background-image:url('${svgWatermark}');"></body></html>`;
+          watermarkWindow.loadURL(`data:text/html;base64,${Buffer.from(html).toString('base64')}`);
         }
       }, 500); // 500ms delay to let the progress bar hit 100%
     }, remainingTime);
@@ -490,7 +528,7 @@ function handleCustomUrl(url) {
   }
   
   // Validate allowed deep-link prefixes to avoid arbitrary injection via the fragment.
-  const allowedPrefixes = ['/test/', '/kiosk-login', '/admin', '/reports', '/invite/'];
+  const allowedPrefixes = ['/test/', '/kiosk-login', '/admin', '/reports'];
   const isAllowed = allowedPrefixes.some(p => urlPath === p || urlPath.startsWith(p));
   if (!isAllowed) {
     console.warn('Blocked disallowed deep-link:', url);
@@ -502,7 +540,7 @@ function handleCustomUrl(url) {
   if (isDev) {
     mainWindow.loadURL(`http://localhost:5173/#${urlPath}`);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: urlPath.replace(/^\//, '') });
+    mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#${urlPath}`);
   }
 }
 
@@ -524,7 +562,10 @@ app.on('ready', () => {
   screen.on('display-removed', manageSecondaryMonitors);
 
   // SECURE EXAM FEATURES: Hook and disable common shortcuts
-  if (app.isPackaged) {
+  // SECURE EXAM FEATURES: Register critical shortcuts only when explicitly allowed
+  // For safety, only enable these in packaged kiosk deployments and when the
+  // environment variable `ALLOW_SHORTCUT_BLOCK=1` is set by the deployment tooling.
+  if (app.isPackaged && process.env.ALLOW_SHORTCUT_BLOCK === '1') {
     try {
       // Attempt to register a minimal set of shortcuts useful for kiosk enforcement.
       globalShortcut.register('CommandOrControl+Shift+Q', () => {
@@ -545,7 +586,7 @@ app.on('ready', () => {
       console.warn('[SECURE BROWSER] Failed to register some global shortcuts:', e);
     }
   } else {
-    console.log('[SECURE BROWSER] Skipping globalShortcut registrations (Dev Mode).');
+    console.log('[SECURE BROWSER] Skipping globalShortcut registrations (not packaged or ALLOW_SHORTCUT_BLOCK not set).');
   }
 });
 

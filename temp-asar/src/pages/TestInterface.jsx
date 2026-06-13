@@ -43,14 +43,18 @@ const TestInterface = () => {
 
           const randomizedTest = { ...test };
           
-          // 1. Shuffle options for each question
+          // 1. Shuffle options for each question & track new correctOption index
           randomizedTest.questions = randomizedTest.questions.map(q => {
             const originalOptions = [...q.options];
+            const correctText = originalOptions[q.correctOption];
+            
             const shuffledOptions = shuffleArray(originalOptions);
+            const newCorrectOption = shuffledOptions.findIndex(opt => opt === correctText);
             
             return {
               ...q,
-              options: shuffledOptions
+              options: shuffledOptions,
+              correctOption: newCorrectOption
             };
           });
 
@@ -122,25 +126,26 @@ const TestInterface = () => {
 
   const handleSubmitExam = async (status = 'Completed', terminationReason = null) => {
     if (!testDetails) return;
+    let correctCount = 0;
     
+    testDetails.questions.forEach(q => {
+      if (answers[q.id] === q.correctOption) {
+        correctCount++;
+      }
+    });
+    
+    const percentage = ((correctCount / testDetails.questions.length) * 100).toFixed(2);
     const candidateName = sessionStorage.getItem('candidateName') || 'Harry';
+    const scoreStr = `${correctCount}/${testDetails.questions.length}`;
     const storedViolations = JSON.parse(sessionStorage.getItem('violations') || '[]');
 
-    const res = await saveReport({
+    await saveReport({
       candidateName,
       testId: testId,
-      answers: answers, // Send actual answers to backend for evaluation
+      score: scoreStr,
       status: status,
       violations: storedViolations
     });
-
-    let score = 'Evaluating...';
-    let percentage = '0.00';
-    if (res && res.score) {
-      score = res.score;
-      const [correct, total] = score.split('/').map(Number);
-      if (total > 0) percentage = ((correct / total) * 100).toFixed(2);
-    }
 
     navigate('/completed', { 
       replace: true, 
@@ -164,10 +169,10 @@ const TestInterface = () => {
     return () => window.removeEventListener('test-terminated', handleTermination);
   }, [testDetails, answers, navigate, testId]);
 
-  const handleSelectOption = (optText) => {
+  const handleSelectOption = (idx) => {
     if (!testDetails) return;
     const currentQ = testDetails.questions[currentQuestionIdx];
-    setAnswers(prev => ({ ...prev, [currentQ.id]: optText }));
+    setAnswers(prev => ({ ...prev, [currentQ.id]: idx }));
   };
 
   const handleClearResponse = () => {
@@ -450,13 +455,13 @@ const TestInterface = () => {
             {currentQ.options.map((opt, idx) => (
               <label 
                 key={idx} 
-                className={`ti-option-label ${answers[currentQ.id] === opt ? 'selected' : ''}`}
+                className={`ti-option-label ${answers[currentQ.id] === idx ? 'selected' : ''}`}
               >
                 <input 
                   type="radio" 
                   name={`q-${currentQ.id}`} 
-                  checked={answers[currentQ.id] === opt}
-                  onChange={() => handleSelectOption(opt)}
+                  checked={answers[currentQ.id] === idx}
+                  onChange={() => handleSelectOption(idx)}
                 />
                 <span className="ti-option-text" style={{ fontSize: `${fontSize - 1}px` }}>{opt}</span>
               </label>

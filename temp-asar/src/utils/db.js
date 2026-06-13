@@ -1,4 +1,4 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'https://nexora-blik.vercel.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'; // Pointing to deployed backend server
 
 // Helper to get admin headers
 const getAuthHeaders = () => {
@@ -20,7 +20,6 @@ export const getAllTests = async () => {
     }
     return await response.json();
   } catch (error) {
-    if (error.message?.startsWith('HTTP error')) throw error;
     console.error("Error fetching all tests from backend:", error);
     // Fallback to local storage if API is down
     const data = localStorage.getItem('mettl_clone_tests');
@@ -41,7 +40,6 @@ export const saveTest = async (test) => {
     }
     return await response.json();
   } catch (error) {
-    if (error.message?.startsWith('HTTP error')) throw error;
     console.error("Error saving test to backend:", error);
     // Fallback to local storage if API is down
     const data = localStorage.getItem('mettl_clone_tests');
@@ -115,7 +113,6 @@ export const updateTest = async (testId, test) => {
     }
     return await response.json();
   } catch (error) {
-    if (error.message?.startsWith('HTTP error')) throw error;
     console.error(`Error updating test ${testId} to backend:`, error);
     // Fallback to local storage if API is down
     const data = localStorage.getItem('mettl_clone_tests');
@@ -164,7 +161,6 @@ export const deleteTest = async (testId) => {
     }
     return true;
   } catch (error) {
-    if (error.message?.startsWith('HTTP error')) throw error;
     console.error(`Error deleting test ${testId} from backend:`, error);
     // Fallback to local storage if API is down
     const data = localStorage.getItem('mettl_clone_tests');

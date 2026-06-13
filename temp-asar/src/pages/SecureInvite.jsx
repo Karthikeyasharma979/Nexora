@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, ExternalLink, ShieldCheck, Download } from 'lucide-react';
-import { getTestById, API_URL } from '../utils/db';
+import { getTestById } from '../utils/db';
 
 const SecureInvite = () => {
   const { token } = useParams();
@@ -12,18 +12,27 @@ const SecureInvite = () => {
 
   useEffect(() => {
     // 1. Check if we are running inside the regular web browser or the Electron app
-    const isElectron = window.secure?.isNexoraKiosk === true;
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isElectron = userAgent.indexOf(' electron/') > -1;
 
     // 2. Verify the token first
     const verifyToken = async () => {
       try {
         let isJwtToken = token.length > 50 && token.includes('.');
+        let offlineDecoded = null;
+        try {
+          const decodedStr = atob(token);
+          const decoded = JSON.parse(decodedStr);
+          if (decoded.type === 'invite' && decoded.testId) {
+            offlineDecoded = decoded;
+          }
+        } catch(e) {}
 
         let requiresSEB = true;
         let testId = token;
 
         if (isJwtToken) {
-          // Using centralized API_URL
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
           const response = await fetch(`${API_URL}/invite/verify/${token}`);
           
           if (response.ok) {
@@ -37,9 +46,30 @@ const SecureInvite = () => {
             return;
           }
         } else {
-          setError('Invalid Access Key or Test not found.');
-          setVerifying(false);
-          return;
+          // It's either an offline base64 token or a direct test ID
+          if (offlineDecoded) {
+            testId = offlineDecoded.testId;
+          }
+          
+          const test = await getTestById(testId);
+          if (!test) {
+            setError('Invalid Access Key or Test not found.');
+            setVerifying(false);
+            return;
+          }
+          requiresSEB = test.requireSEB !== false;
+          
+          const now = new Date();
+          if (test.startTime && now < new Date(test.startTime)) {
+            setError(`Test has not started yet. Starts at ${new Date(test.startTime).toLocaleString()}.`);
+            setVerifying(false);
+            return;
+          }
+          if (test.endTime && now > new Date(test.endTime)) {
+            setError('This test window has expired.');
+            setVerifying(false);
+            return;
+          }
         }
 
         if (requiresSEB && !isElectron) {

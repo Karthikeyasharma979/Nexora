@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, ChevronRight, Home } from 'lucide-react';
-import { API_URL } from '../utils/db';
 import './AdminLogin.css';
 import './HomePage.css';
 
@@ -17,7 +16,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      // Using centralized API_URL
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'; // Using localhost for dev fallback
       const response = await fetch(`${API_URL}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -7,7 +7,7 @@ import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
 const ProctoringEngine = ({ children, requireCamera = true }) => {
-  const isElectron = window.secure?.isNexoraKiosk === true;
+  const isElectron = /electron/i.test(navigator.userAgent);
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
   const [isFullscreen, setIsFullscreen] = useState(isElectron || !!document.fullscreenElement);
@@ -299,12 +299,9 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
       let gazeAwayCount = 0;
       let lastBlinkTime = Date.now();
       
-      let isProcessing = false;
       if (videoRef.current) {
         faceInterval = setInterval(async () => {
-          if (isProcessing) return;
           if (videoRef.current && videoRef.current.readyState === 4) {
-            isProcessing = true;
             
             try {
               // 1. Electronic Device Detection (Phones/Laptops)
@@ -393,8 +390,6 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
             } catch (e) {
               // Ignore errors if models aren't loaded or video is paused
               console.warn("Face detection error:", e);
-            } finally {
-              isProcessing = false;
             }
           }
         }, 1000); // Check every 1 second
@@ -567,21 +562,22 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
         </div>
       )}
 
-      <div style={{ display: !isFullscreen ? 'flex' : 'none', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white' }}>
-        <h2>Fullscreen Required</h2>
-        <p style={{ margin: '20px 0', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
-          This is a proctored exam. You must remain in fullscreen mode to continue. Any attempt to exit fullscreen will be recorded as a violation.
-        </p>
-        <button 
-          onClick={enforceFullscreen} 
-          style={{ padding: '12px 24px', backgroundColor: '#1e56a0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}
-        >
-          Enter Fullscreen & Return to Test
-        </button>
-      </div>
-      <div style={{ display: isFullscreen ? 'block' : 'none', height: '100%' }}>
-        {children}
-      </div>
+      {!isFullscreen ? (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white' }}>
+          <h2>Fullscreen Required</h2>
+          <p style={{ margin: '20px 0', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
+            This is a proctored exam. You must remain in fullscreen mode to continue. Any attempt to exit fullscreen will be recorded as a violation.
+          </p>
+          <button 
+            onClick={enforceFullscreen} 
+            style={{ padding: '12px 24px', backgroundColor: '#1e56a0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}
+          >
+            Enter Fullscreen & Return to Test
+          </button>
+        </div>
+      ) : (
+        children
+      )}
     </>
   );
 };

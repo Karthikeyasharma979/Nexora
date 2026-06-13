@@ -21,11 +21,6 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://karthikeyasharma888_db_user:bcFea7ZySw1Dcoll@cluster0.gvcdx8s.mongodb.net/TaskioDB?retryWrites=true&w=majority&appName=Cluster0';
 
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD)) {
-  console.error("FATAL ERROR: JWT_SECRET or ADMIN_PASSWORD is not set in production. Exiting...");
-  process.exit(1);
-}
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -202,27 +197,12 @@ app.get('/api/tests/:id', async (req, res) => {
     if (!test) {
       return res.status(404).json({ error: 'Test not found' });
     }
-    
-    // Create a deep copy and strip correctOption
-    const sanitizedTest = JSON.parse(JSON.stringify(test));
-    if (sanitizedTest.questions) {
-      sanitizedTest.questions.forEach(q => {
-        delete q.correctOption;
-      });
-    }
-    return res.json(sanitizedTest);
+    return res.json(test);
   }
   try {
-    const test = await Test.findOne({ id: req.params.id }).lean();
+    const test = await Test.findOne({ id: req.params.id });
     if (!test) {
       return res.status(404).json({ error: 'Test not found' });
-    }
-    
-    // Strip correctOption
-    if (test.questions) {
-      test.questions.forEach(q => {
-        delete q.correctOption;
-      });
     }
     res.json(test);
   } catch (error) {
@@ -350,33 +330,10 @@ app.get('/api/reports', authenticateAdmin, async (req, res) => {
 // 7. Save a report
 app.post('/api/reports', async (req, res) => {
   try {
-    const { candidateName, testId, answers, status, violations } = req.body;
-    if (!candidateName || !testId || !answers || !status) {
+    const { candidateName, testId, score, status, violations } = req.body;
+    if (!candidateName || !testId || !score || !status) {
       return res.status(400).json({ error: 'Missing required fields for report' });
     }
-
-    // Evaluate score securely on the server
-    let correctCount = 0;
-    let totalQuestions = 0;
-    
-    let test;
-    if (useInMemoryDb) {
-      test = inMemoryTests.find(t => t.id === testId);
-    } else {
-      test = await Test.findOne({ id: testId });
-    }
-
-    if (test && test.questions) {
-      totalQuestions = test.questions.length;
-      test.questions.forEach(q => {
-        const correctText = q.options[q.correctOption];
-        if (answers[q.id] === correctText) {
-          correctCount++;
-        }
-      });
-    }
-
-    const score = `${correctCount}/${totalQuestions}`;
 
     const newReportData = { candidateName, testId, score, status, violations: violations || [] };
 
@@ -388,7 +345,7 @@ app.post('/api/reports', async (req, res) => {
 
     const newReport = new Report(newReportData);
     await newReport.save();
-    res.status(201).json({ ...newReport.toJSON(), score });
+    res.status(201).json(newReport);
   } catch (error) {
     console.error('Error saving report:', error);
     res.status(500).json({ error: 'Server error saving report' });
@@ -576,11 +533,6 @@ ${format === 'link' ? `
 
 
 // Start server
-if (!process.env.VERCEL) {
-  server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-}
-
-// Export the app for Vercel serverless functions
-export default app;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

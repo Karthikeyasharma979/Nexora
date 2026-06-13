@@ -1,0 +1,18 @@
+.workflow-page-container {
+  min-height: 100vh;
+  background-color: var(--home-bg);
+  color: var(--home-text-primary);
+  font-family: var(--font-main);
+  position: relative;
+  overflow: clip;
+  padding-top: 8rem;
+}
+
+.workflow-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 5%;
+  position: relative;
+  z-index: 10;
+}

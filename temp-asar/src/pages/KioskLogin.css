@@ -627,7 +627,6 @@
 
 .status-icon.success { color: var(--color-emerald); filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.2)); }
 .status-icon.error { color: var(--color-rose); filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.2)); }
-.status-icon.warning { color: var(--color-amber); filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.2)); }
 .status-icon.pending { color: var(--color-amber); }
 
 .spinner {
@@ -642,7 +641,6 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--kiosk-text-primary);
-  white-space: nowrap;
 }
 
 .dual-item {

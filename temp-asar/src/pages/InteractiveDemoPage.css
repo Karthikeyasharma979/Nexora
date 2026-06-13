@@ -1,0 +1,32 @@
+.demo-page-container {
+  min-height: 100vh;
+  background-color: var(--home-bg);
+  color: var(--home-text-primary);
+  font-family: var(--font-main);
+  position: relative;
+  overflow: clip;
+  padding-top: 8rem;
+}
+
+.demo-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 5%;
+  position: relative;
+  z-index: 10;
+}
+
+.page-title {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 900;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: var(--home-text-secondary);
+  margin-bottom: 4rem;
+  text-align: center;
+}

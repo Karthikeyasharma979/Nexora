@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTestById, API_URL } from '../utils/db';
+import { getTestById } from '../utils/db';
 import { 
   Monitor, 
   Globe, 
@@ -17,8 +17,7 @@ import {
   ShieldAlert,
   ArrowRight,
   ShieldCheck,
-  X,
-  AlertTriangle
+  X
 } from 'lucide-react';
 import './KioskLogin.css';
 
@@ -45,7 +44,8 @@ const KioskLogin = () => {
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
-    const isElec = window.secure?.isNexoraKiosk === true;
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isElec = userAgent.indexOf(' electron/') > -1 || userAgent.includes('electron');
     setIsElectron(isElec);
     runDiagnostics(isElec);
   }, []);
@@ -80,14 +80,14 @@ const KioskLogin = () => {
     // Network Check
     if (navigator.onLine) {
       try {
-        const res = await fetch(`${API_URL}/tests`, { method: 'GET' });
+        const res = await fetch('https://nexora-t8dh.onrender.com/api/tests', { method: 'GET' });
         if (res.ok) {
           setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping Excellent' } }));
         } else {
           setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping ok (Local Mode)' } }));
         }
       } catch (err) {
-        setSystemChecks(prev => ({ ...prev, network: { status: 'warning', value: 'Ping ok (Offline Fallback)' } }));
+        setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping ok (Offline Fallback)' } }));
       }
     } else {
       setSystemChecks(prev => ({ ...prev, network: { status: 'error', value: 'Offline' } }));
@@ -128,8 +128,17 @@ const KioskLogin = () => {
     try {
       let actualTestId = accessToken.trim();
       let isJwtToken = actualTestId.length > 50 && actualTestId.includes('.');
+      let offlineDecoded = null;
+      try {
+        const decodedStr = atob(actualTestId);
+        const decoded = JSON.parse(decodedStr);
+        if (decoded.type === 'invite' && decoded.testId) {
+          offlineDecoded = decoded;
+        }
+      } catch(e) {}
 
       if (isJwtToken) {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
         const response = await fetch(`${API_URL}/invite/verify/${actualTestId}`);
         if (response.ok) {
           const data = await response.json();
@@ -140,6 +149,8 @@ const KioskLogin = () => {
           setLoading(false);
           return;
         }
+      } else if (offlineDecoded) {
+        actualTestId = offlineDecoded.testId;
       }
 
       const test = await getTestById(actualTestId);
@@ -194,7 +205,6 @@ const KioskLogin = () => {
   const renderStatusIcon = (status) => {
     if (status === 'ok') return <CheckCircle2 className="status-icon success" size={18} />;
     if (status === 'error') return <AlertCircle className="status-icon error" size={18} />;
-    if (status === 'warning') return <AlertTriangle className="status-icon warning" size={18} />;
     return <RefreshCw className="status-icon pending spinner" size={18} />;
   };
 
