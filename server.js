@@ -19,7 +19,7 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://karthikeyasharma888_db_user:bcFea7ZySw1Dcoll@cluster0.gvcdx8s.mongodb.net/TaskioDB?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD)) {
   console.error("FATAL ERROR: JWT_SECRET or ADMIN_PASSWORD is not set in production. Exiting...");
@@ -38,7 +38,7 @@ const authenticateAdmin = (req, res, next) => {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.role !== 'admin') throw new Error('Not admin');
     next();
   } catch (error) {
@@ -425,10 +425,10 @@ app.post('/api/demo-requests', async (req, res) => {
 // Admin Login
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = process.env.ADMIN_PASSWORD;
   
   if (password === adminPassword) {
-    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026', { expiresIn: '12h' });
+    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '12h' });
     return res.json({ token });
   } else {
     return res.status(401).json({ error: 'Invalid password' });
@@ -442,7 +442,7 @@ app.post('/api/invite/generate', authenticateAdmin, (req, res) => {
 
   const token = jwt.sign(
     { testId, candidateEmail, type: 'invite' },
-    process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026',
+    process.env.JWT_SECRET,
     { expiresIn: '7d' } // Link valid for 7 days
   );
   
@@ -457,7 +457,7 @@ app.get('/api/invite/verify/:token', async (req, res) => {
     // 1. Verify JWT
     const decoded = jwt.verify(
       token, 
-      process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026'
+      process.env.JWT_SECRET
     );
     
     if (decoded.type !== 'invite') {
@@ -499,7 +499,7 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
     // Generate token
     const token = jwt.sign(
       { testId, candidateEmail, type: 'invite' },
-      process.env.JWT_SECRET || 'super_secret_nexora_jwt_key_2026',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     const secureLink = `nexora://invite/${token}`;
