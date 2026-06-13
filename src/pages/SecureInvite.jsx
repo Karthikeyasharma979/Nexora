@@ -30,6 +30,9 @@ const SecureInvite = () => {
             const data = await response.json();
             requiresSEB = data.requireSEB !== false; // defaults to true
             testId = data.testId;
+            if (data.candidateEmail) {
+              sessionStorage.setItem('candidateEmail', data.candidateEmail);
+            }
           } else {
             const errData = await response.json();
             setError(errData.error || 'Invalid or Expired Invite Link');

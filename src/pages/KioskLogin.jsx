@@ -135,6 +135,9 @@ const KioskLogin = () => {
           const data = await response.json();
           actualTestId = data.testId;
           sessionStorage.setItem('secure_invite_token', actualTestId);
+          if (data.candidateEmail) {
+            sessionStorage.setItem('candidateEmail', data.candidateEmail);
+          }
         } else {
           setError('Invalid or Expired Access Token.');
           setLoading(false);

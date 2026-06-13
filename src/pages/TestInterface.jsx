@@ -127,10 +127,12 @@ const TestInterface = () => {
     if (!testDetails) return;
     
     const candidateName = sessionStorage.getItem('candidateName') || 'Harry';
+    const candidateEmail = sessionStorage.getItem('candidateEmail') || '';
     const storedViolations = JSON.parse(sessionStorage.getItem('violations') || '[]');
 
     const res = await saveReport({
       candidateName,
+      candidateEmail,
       testId: testId,
       answers: answers, // Send actual answers to backend for evaluation
       status: status,

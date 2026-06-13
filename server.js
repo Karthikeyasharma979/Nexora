@@ -6,6 +6,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import OpenAI from 'openai';
 
 dotenv.config();
 
@@ -136,10 +137,12 @@ const Test = mongoose.model('Test', testSchema);
 
 const reportSchema = new mongoose.Schema({
   candidateName: { type: String, required: true },
+  candidateEmail: { type: String },
   testId: { type: String, required: true },
   score: { type: String, required: true },
   status: { type: String, required: true },
-  violations: { type: Array, default: [] }
+  violations: { type: Array, default: [] },
+  aiRecommendation: { type: String }
 }, { timestamps: true });
 
 const Report = mongoose.model('Report', reportSchema);
@@ -350,7 +353,7 @@ app.get('/api/reports', authenticateAdmin, async (req, res) => {
 // 7. Save a report
 app.post('/api/reports', async (req, res) => {
   try {
-    const { candidateName, testId, answers, status, violations } = req.body;
+    const { candidateName, candidateEmail, testId, answers, status, violations } = req.body;
     if (!candidateName || !testId || !answers || !status) {
       return res.status(400).json({ error: 'Missing required fields for report' });
     }
@@ -378,20 +381,115 @@ app.post('/api/reports', async (req, res) => {
 
     const score = `${correctCount}/${totalQuestions}`;
 
-    const newReportData = { candidateName, testId, score, status, violations: violations || [] };
+    // Generate AI Recommendation
+    let aiRecommendation = "Good effort on your test. Keep practicing to improve further!";
+    const githubToken = process.env.GITHUB_TOKEN;
+    if (githubToken) {
+      try {
+        const client = new OpenAI({ baseURL: "https://models.github.ai/inference", apiKey: githubToken });
+        const aiResponse = await client.chat.completions.create({
+          messages: [
+            { role: "system", content: "You are an expert test evaluator. Provide a brief (2-3 sentences), constructive recommendation for a student based on their test score and violations (if any). Use encouraging tone." },
+            { role: "user", content: `Student scored ${score}. Total Violations: ${violations ? violations.length : 0}. Give a brief recommendation.` }
+          ],
+          model: "gpt-4o"
+        });
+        if (aiResponse.choices && aiResponse.choices.length > 0) {
+          aiRecommendation = aiResponse.choices[0].message.content;
+        }
+      } catch (err) {
+        console.error("Error generating AI recommendation:", err);
+      }
+    }
+
+    const newReportData = { candidateName, candidateEmail, testId, score, status, violations: violations || [], aiRecommendation };
 
     if (useInMemoryDb) {
       const savedReport = { ...newReportData, _id: Date.now().toString(), createdAt: new Date().toISOString() };
       inMemoryReports.unshift(savedReport);
+      
+      // Send Email asynchronously
+      if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+        sendResultEmail(candidateEmail, candidateName, savedReport._id, test ? test.name : testId, score, aiRecommendation).catch(err => console.error("Email send failed:", err));
+      }
+      
       return res.status(201).json(savedReport);
     }
 
     const newReport = new Report(newReportData);
     await newReport.save();
+    
+    // Send Email asynchronously
+    if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+      sendResultEmail(candidateEmail, candidateName, newReport._id.toString(), test ? test.name : testId, score, aiRecommendation).catch(err => console.error("Email send failed:", err));
+    }
+    
     res.status(201).json({ ...newReport.toJSON(), score });
   } catch (error) {
     console.error('Error saving report:', error);
     res.status(500).json({ error: 'Server error saving report' });
+  }
+});
+
+// Helper for sending result email
+async function sendResultEmail(email, name, reportId, testName, score, aiRecommendation) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USERNAME,
+      pass: process.env.EMAIL_PASSWORD
+    }
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const resultLink = `${frontendUrl}/#/result/${reportId}`;
+
+  const mailOptions = {
+    from: `"Nexora Assessments" <${process.env.EMAIL_USERNAME}>`,
+    to: email,
+    subject: `Your Test Results for ${testName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; border: 1px solid #ddd; background-color: #f9f9f9;">
+        <div style="background-color: #0b1a30; padding: 20px;">
+           <h2 style="color: #00b4d8; margin: 0;">Nexora<span style="color:#fff;">Secure</span></h2>
+        </div>
+        <div style="padding: 30px;">
+          <p>Dear ${name},</p>
+          <p>You have successfully completed the assessment for <strong>${testName}</strong>.</p>
+          <p>Your Score: <strong>${score}</strong></p>
+          
+          <div style="background-color: #eef2f5; padding: 20px; border-radius: 5px; margin-top: 20px;">
+            <h3 style="color: #2c3e50; margin-top: 0;">AI Recommendation:</h3>
+            <p style="font-style: italic; color: #444;">${aiRecommendation}</p>
+          </div>
+
+          <p style="margin-top: 30px;">To view your detailed result, click the link below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resultLink}" style="background-color: #00b4d8; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Result</a>
+          </div>
+          
+          <p>Regards,<br/><strong>Talent Acquisition Team</strong></p>
+        </div>
+      </div>
+    `
+  };
+  await transporter.sendMail(mailOptions);
+}
+
+// 7a. Get a specific report by ID
+app.get('/api/reports/:id', async (req, res) => {
+  try {
+    if (useInMemoryDb) {
+      const report = inMemoryReports.find(r => r._id === req.params.id);
+      if (!report) return res.status(404).json({ error: 'Report not found' });
+      return res.json(report);
+    }
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json(report);
+  } catch (error) {
+    console.error('Error fetching report by ID:', error);
+    res.status(500).json({ error: 'Server error fetching report' });
   }
 });
 

@@ -16,6 +16,7 @@ import RequestDemoPage from './pages/RequestDemoPage';
 import KioskLogin from './pages/KioskLogin';
 import AdminLogin from './pages/AdminLogin';
 import SecureInvite from './pages/SecureInvite';
+import ResultPage from './pages/ResultPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeDB } from './utils/db';
 
@@ -47,8 +48,9 @@ function App() {
           <Route index element={<TestInterface />} />
         </Route>
         
-        {/* Post-Test Route */}
+        {/* Post-Test Routes */}
         <Route path="/completed" element={<TestCompleted />} />
+        <Route path="/result/:reportId" element={<ResultPage />} />
 
         {/* Admin Login */}
         <Route path="/admin/login" element={<AdminLogin />} />
