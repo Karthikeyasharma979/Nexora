@@ -98,7 +98,7 @@
   color: #333;
   width: 100%;
   max-width: 650px;
-  height: 400px;
+  height: 540px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -127,11 +127,11 @@
 
 .pt-carousel-content {
   text-align: center;
-  padding: 0 60px;
+  padding: 0 60px 60px 60px;
 }
 
 .pt-carousel-icon {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: center;
 }
@@ -154,7 +154,7 @@
   bottom: 30px;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
 }
 
 .pt-play-pause {
@@ -168,19 +168,25 @@
 
 .pt-dots {
   display: flex;
-  gap: 8px;
+  gap: 16px;
+  align-items: center;
 }
 
 .pt-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background-color: #c4d4e0;
+  background-color: #2f6deb;
   cursor: pointer;
 }
 
 .pt-dot.active {
-  background-color: #0056b3;
+  width: 10px;
+  height: 10px;
+  background-color: #2f6deb;
+  border: 3px solid white;
+  outline: 3px solid #2f6deb;
+  border-radius: 50%;
 }
 
 /* Footer */

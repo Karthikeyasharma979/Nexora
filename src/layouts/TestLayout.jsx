@@ -6,14 +6,16 @@ import { getTestById } from '../utils/db';
 const TestLayout = () => {
   const { testId } = useParams();
   const [requireCamera, setRequireCamera] = useState(true); // default true for safety
+  const [requireSEB, setRequireSEB] = useState(true);
   const [testLoaded, setTestLoaded] = useState(false);
 
   useEffect(() => {
     if (testId) {
       getTestById(testId)
         .then(test => {
-          if (test && test.requireCamera === false) {
-            setRequireCamera(false);
+          if (test) {
+            if (test.requireCamera === false) setRequireCamera(false);
+            if (test.requireSEB === false) setRequireSEB(false);
           }
           setTestLoaded(true);
         })
@@ -29,7 +31,7 @@ const TestLayout = () => {
   if (!testLoaded) return <div style={{ padding: '50px', textAlign: 'center' }}>Loading test environment...</div>;
 
   return (
-    <ProctoringEngine requireCamera={requireCamera}>
+    <ProctoringEngine requireCamera={requireCamera} requireSEB={requireSEB}>
       <div className="test-layout-container">
         <Outlet />
       </div>

@@ -6,19 +6,19 @@ import './PreTestWelcome.css';
 
 const CAROUSEL_SLIDES = [
   {
-    icon: <Wifi size={100} color="#607d8b" />,
+    image: '/wifi.png',
     title: 'Internet Connectivity',
     desc: 'Ensure that you have a stable internet connection with a minimum speed of 512 kbps'
   },
   {
-    icon: <Monitor size={100} color="#607d8b" />,
-    title: 'Supported Browsers',
-    desc: 'Please use the latest version of Google Chrome or Mozilla Firefox for the best experience.'
+    image: '/f5.png',
+    title: 'Don’t Refresh',
+    desc: 'Don’t refresh the webpage during the assessment. This will lead to immediate submission of your responses.'
   },
   {
-    icon: <Camera size={100} color="#607d8b" />,
-    title: 'Webcam & Audio',
-    desc: 'Make sure your webcam and microphone are working and you are in a well-lit room.'
+    image: '/savedisk.png',
+    title: 'Auto Save',
+    desc: 'All your responses are saved automatically. In case of disconnection or shutdown, you will still be able to resume easily.'
   }
 ];
 
@@ -70,6 +70,12 @@ const PreTestWelcome = () => {
   }, [isCarouselPlaying]);
 
   const proceedToTest = () => {
+    // Request full screen mode
+    const docElm = document.documentElement;
+    if (docElm.requestFullscreen) {
+      docElm.requestFullscreen().catch(err => console.error("Error attempting to enable fullscreen:", err));
+    }
+    
     // Navigate to the intermediate diagnostics page to request permissions
     navigate(`/diagnostics/${testId}`);
   };
@@ -84,7 +90,8 @@ const PreTestWelcome = () => {
     <div className="pt-container">
       {/* Top Logo */}
       <div className="pt-logo-header">
-        <div className="pt-mercer-logo">
+        <div className="pt-mercer-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/favicon.svg" alt="Nexora Logo" style={{ height: '40px' }} />
           <strong>Nexora</strong>
         </div>
       </div>
@@ -134,7 +141,11 @@ const PreTestWelcome = () => {
 
             <div className="pt-carousel-content">
               <div className="pt-carousel-icon">
-                {CAROUSEL_SLIDES[currentSlide].icon}
+                {CAROUSEL_SLIDES[currentSlide].image ? (
+                  <img src={CAROUSEL_SLIDES[currentSlide].image} alt={CAROUSEL_SLIDES[currentSlide].title} style={{ height: '240px', objectFit: 'contain' }} />
+                ) : (
+                  CAROUSEL_SLIDES[currentSlide].icon
+                )}
               </div>
               <h3 className="pt-carousel-title">{CAROUSEL_SLIDES[currentSlide].title}</h3>
               <p className="pt-carousel-desc">{CAROUSEL_SLIDES[currentSlide].desc}</p>
@@ -152,7 +163,14 @@ const PreTestWelcome = () => {
                 className="pt-play-pause"
                 onClick={() => setIsCarouselPlaying(!isCarouselPlaying)}
               >
-                {isCarouselPlaying ? <Pause size={14} color="#0056b3" /> : <Play size={14} color="#0056b3" />}
+                {isCarouselPlaying ? (
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', marginRight: '4px' }}>
+                    <div style={{ width: '5px', height: '100%', backgroundColor: '#0f4c9c', borderRadius: '1px' }}></div>
+                    <div style={{ width: '5px', height: '100%', backgroundColor: '#0f4c9c', borderRadius: '1px' }}></div>
+                  </div>
+                ) : (
+                  <Play size={18} color="#0f4c9c" fill="#0f4c9c" style={{ marginRight: '4px' }} />
+                )}
               </button>
               <div className="pt-dots">
                 {CAROUSEL_SLIDES.map((_, idx) => (
@@ -172,13 +190,6 @@ const PreTestWelcome = () => {
       <footer className="pt-footer">
         <div className="pt-footer-col">
           Nexora Online Assessment ©<br/>2021-2031
-        </div>
-        <div className="pt-footer-col">
-          Need Help? Contact us (Please add<br/>country code while dialing)
-        </div>
-        <div className="pt-footer-col contacts">
-          <span>🇺🇸 +1 (800) 265-6038</span>
-          <span>🇮🇳 +91 80471-89190</span>
         </div>
         <div className="pt-footer-links">
           <a href="#" onClick={(e) => { e.preventDefault(); setShowCookieManager(true); }}>Manage cookies</a>

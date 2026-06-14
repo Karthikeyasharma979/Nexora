@@ -27,6 +27,14 @@
   border-bottom: 1px solid #eaeaea;
 }
 
+.tc-illustration-terminated {
+  background-color: #fef2f2;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .tc-illustration img {
   width: 100%;
   max-height: 250px;
@@ -116,6 +124,45 @@
 .tc-star.filled {
   color: #1e56a0;
   fill: #1e56a0;
+}
+
+.tc-submit-feedback-btn {
+  background-color: #1e56a0;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tc-submit-feedback-btn:hover:not(:disabled) {
+  background-color: #153e75;
+}
+
+.tc-feedback-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.tc-return-home-btn {
+  background-color: white;
+  color: #1e56a0;
+  border: 1px solid #1e56a0;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tc-return-home-btn:hover {
+  background-color: #f8f9fa;
 }
 
 /* Report Modal */

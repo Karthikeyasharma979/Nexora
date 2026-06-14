@@ -35,7 +35,8 @@
   padding-right: 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 40px;
 }
 
 .diag-hi {
@@ -85,42 +86,64 @@
 /* Middle Stepper */
 .diag-stepper {
   width: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+}
+
+.diag-stepper-inner {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 40px;
+  gap: 70px;
+  height: fit-content;
 }
 
 .diag-line {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 10px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
-  background-color: #e9ecef;
+  width: 1px;
+  background-color: #bcd2e5;
   z-index: 1;
 }
 
 .diag-step-icon {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   background-color: white;
-  border: 2px solid #ced4da;
+  border: 1px solid #bcd2e5;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
-  color: #6c757d;
+  color: #3b4859;
+  position: relative;
 }
 
 .diag-step-icon.active {
-  background-color: #00a8e8;
-  border-color: #00a8e8;
+  background-color: #009ce0;
+  border: none;
   color: white;
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 0 0 1px #009ce0;
+}
+
+.diag-line-progress {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  background-color: #009ce0;
+  z-index: 1;
+  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Right Column */
@@ -129,7 +152,8 @@
   padding-left: 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 40px;
 }
 
 .diag-right-title {

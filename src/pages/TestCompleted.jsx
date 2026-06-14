@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Star, X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import './TestCompleted.css';
 
 const TestCompleted = () => {
   const [rating, setRating] = useState(0);
   const [showReport, setShowReport] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const score = location.state?.score || 'N/A';
   const candidateName = location.state?.candidateName || 'Candidate';
@@ -32,8 +34,8 @@ const TestCompleted = () => {
       <div className="tc-card tc-top-card">
         {status === 'Terminated' ? (
           <>
-            <div className="tc-illustration">
-              <AlertCircle size={64} style={{ color: '#ef4444' }} />
+            <div className="tc-illustration tc-illustration-terminated">
+              <AlertCircle size={80} style={{ color: '#ef4444' }} />
             </div>
             <div className="tc-content">
               <h2 className="tc-congratulations" style={{ color: '#ef4444' }}>
@@ -78,17 +80,43 @@ const TestCompleted = () => {
         </p>
 
         <div className="tc-rating-section">
-          <h4>How was your test taking experience?</h4>
-          <div className="tc-stars">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star 
-                key={star} 
-                size={28} 
-                className={`tc-star ${rating >= star ? 'filled' : ''}`} 
-                onClick={() => setRating(star)} 
-              />
-            ))}
-          </div>
+          {!feedbackSubmitted ? (
+            <>
+              <h4>How was your test taking experience?</h4>
+              <div className="tc-stars">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star 
+                    key={star} 
+                    size={28} 
+                    className={`tc-star ${rating >= star ? 'filled' : ''}`} 
+                    onClick={() => setRating(star)} 
+                  />
+                ))}
+              </div>
+              <div style={{ marginTop: '20px' }}>
+                <button 
+                  className="tc-submit-feedback-btn" 
+                  onClick={() => setFeedbackSubmitted(true)}
+                  disabled={rating === 0}
+                  style={{ opacity: rating === 0 ? 0.5 : 1 }}
+                >
+                  Submit Feedback
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="tc-feedback-success">
+              <CheckCircle size={40} color="#28a745" style={{ marginBottom: '10px' }} />
+              <h4 style={{ color: '#28a745' }}>Thank you for your feedback!</h4>
+              <p style={{ fontSize: '13px', color: '#6c757d', marginBottom: '20px' }}>Your response has been recorded successfully.</p>
+              <button 
+                className="tc-return-home-btn" 
+                onClick={() => navigate('/')}
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

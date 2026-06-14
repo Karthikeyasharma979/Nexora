@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import { getTestById } from '../utils/db';
-import { CheckCircle2, Circle, Laptop, Grid, Info, User, ClipboardList, MessageSquare, Check, X as XIcon, Camera, AlertTriangle, Send } from 'lucide-react';
+import { CheckCircle2, Circle, Laptop, Info, User, Book, MessageSquare, Check, X as XIcon, Camera, AlertTriangle, Send } from 'lucide-react';
 import './Diagnostics.css';
 
 const Diagnostics = () => {
@@ -74,7 +74,7 @@ const Diagnostics = () => {
     } else {
       // If camera not required, simulate permissions granted so they can proceed immediately
       setPermissionsStatus('granted');
-      setScreenStatus('granted');
+      // Do not automatically grant screenStatus so that screen sharing (proctoring) still works
     }
   }, [testDetails]);
 
@@ -93,8 +93,7 @@ const Diagnostics = () => {
       
       setPermissionsStatus('granted');
       
-      // After camera is granted, proceed to request screen share
-      requestScreenShare();
+      // Do not automatically request screen share, wait for user click
     } catch (error) {
       console.error("Permission denied or error:", error);
       
@@ -119,9 +118,11 @@ const Diagnostics = () => {
         throw new Error("Screen sharing is not supported in your browser.");
       }
       
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      // Stop the tracks immediately so the screen share indicator goes off
-      stream.getTracks().forEach(track => track.stop());
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { displaySurface: "monitor" } 
+      });
+      // Keep the stream active for the duration of the test
+      window.globalScreenStream = stream; // Store globally if needed later
       
       setScreenStatus('granted');
     } catch (error) {
@@ -174,27 +175,29 @@ const Diagnostics = () => {
       const isCaptureValid = testDetails.requireCamera === false || (faceImageSrc && idImageSrc);
       
       if (isDetailsValid && isCaptureValid) {
-        const isElectron = window.navigator.userAgent.toLowerCase().includes('electron');
-        const requireSEB = testDetails.requireSEB !== false; // Default true
-
         // Save registration details
         sessionStorage.setItem('candidateName', candidateName.trim());
         sessionStorage.setItem('candidateEmail', candidateEmail.trim());
         
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(t => t.stop());
-        }
+        setCurrentPhase(3); // Move to "Ready to start" phase
+      }
+    } else if (currentPhase === 3) {
+      const isElectron = window.navigator.userAgent.toLowerCase().includes('electron');
+      const requireSEB = testDetails.requireSEB !== false; // Default true
 
-        if (isElectron || !requireSEB) {
-          // If we are in the Secure Browser, OR the test doesn't require it, go straight to the test
-          if (!isElectron && !document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
-          }
-          navigate(`/test/${testId}`);
-        } else {
-          // Move to Monitored Session Gateway for web users to launch the app
-          setCurrentPhase(3);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+
+      if (isElectron || !requireSEB) {
+        // If we are in the Secure Browser, OR the test doesn't require it, go straight to the test
+        if (!isElectron && !document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
         }
+        navigate(`/test/${testId}`);
+      } else {
+        // Move to Monitored Session Gateway for web users to launch the app
+        setCurrentPhase(4);
       }
     }
   };
@@ -227,8 +230,8 @@ const Diagnostics = () => {
   };
 
   useEffect(() => {
-    if (currentPhase === 3) {
-      // Automatically attempt to launch the secure browser when entering phase 3
+    if (currentPhase === 4) {
+      // Automatically attempt to launch the secure browser when entering phase 4
       finalizeAndStartTest();
     }
   }, [currentPhase]);
@@ -319,7 +322,7 @@ const Diagnostics = () => {
 
   if (!testDetails) return <div className="diag-loading">Loading Test Details...</div>;
 
-  if (currentPhase === 3) {
+  if (currentPhase === 4) {
     return (
       <div className="diag-fullscreen-gateway">
           <div className="diag-monitor-modal-container">
@@ -373,9 +376,9 @@ const Diagnostics = () => {
       <div className="diag-main">
         {/* Left Column */}
         <div className="diag-left">
-          {currentPhase === 0 || currentPhase === 1 ? (
+          {currentPhase === 0 || currentPhase === 1 || currentPhase === 3 ? (
             <div className="diag-test-info">
-              <p className="diag-hi">Hi,</p>
+              <p className="diag-hi">Hi Candidate,</p>
               <h2 className="diag-welcome">Welcome to</h2>
               <h1 className="diag-title">{testDetails.name}</h1>
 
@@ -462,43 +465,58 @@ const Diagnostics = () => {
 
         {/* Center Vertical Stepper */}
         <div className="diag-stepper">
-          <div className="diag-line"></div>
-          <div className={`diag-step-icon ${currentPhase >= 0 ? 'active' : ''}`}><Laptop size={16} /></div>
-          <div className={`diag-step-icon ${currentPhase >= 0 ? 'active' : ''}`}><Grid size={16} /></div>
-          <div className={`diag-step-icon ${currentPhase >= 1 ? 'active' : ''}`}><Info size={16} /></div>
-          <div className={`diag-step-icon ${currentPhase >= 2 ? 'active' : ''}`}><User size={16} /></div>
-          <div className={`diag-step-icon ${currentPhase > 2 ? 'active' : ''}`}><ClipboardList size={16} /></div>
+          <div className="diag-stepper-inner">
+            <div className="diag-line"></div>
+            <div className="diag-line-progress" style={{ 
+              height: currentPhase === 0 ? '0px' : 
+                      currentPhase === 1 ? '116px' : 
+                      currentPhase === 2 ? '232px' : 
+                      '348px'
+            }}></div>
+            <div className={`diag-step-icon ${currentPhase >= 0 ? 'active' : ''}`}><Laptop size={24} /></div>
+            <div className={`diag-step-icon ${currentPhase >= 1 ? 'active' : ''}`}><Info size={24} /></div>
+            <div className={`diag-step-icon ${currentPhase >= 2 ? 'active' : ''}`}><User size={24} /></div>
+            <div className={`diag-step-icon ${currentPhase > 2 ? 'active' : ''}`}><Book size={24} /></div>
+          </div>
         </div>
 
         {/* Right Column */}
         <div className="diag-right">
           {currentPhase === 0 ? (
             <>
-              <h2 className="diag-right-title">Requesting Microphone/Webcam permission</h2>
+              <h2 className="diag-right-title" style={{ fontSize: '22px', color: '#142b51', marginBottom: '20px' }}>
+                {permissionsStatus !== 'granted' ? 'Requesting Webcam & Audio permission' : 
+                 screenStatus !== 'granted' ? 'Requesting Screen Share permission' : 
+                 'All Set. Please Proceed'}
+              </h2>
               
-              <div className="diag-checklist">
+              <div className="diag-checklist" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
                 {/* Step 1 */}
-                <div className="diag-check-item success">
-                  <CheckCircle2 size={20} color="#28a745" className="diag-check-icon" />
+                <div className="diag-check-item success" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+                  <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ marginTop: '2px', alignSelf: 'flex-start' }} />
                   <div className="diag-check-text">
-                    <strong>1. System Compatibility</strong>
+                    <strong style={{ color: '#142b51', fontSize: '15px' }}>1. System Compatibility</strong>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '10px', color: '#64748b', fontSize: '14px', lineHeight: '1.5' }}>
+                      <Info size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+                      <span>Please make sure Grammar or Spell check plugins are not installed in your system, for example Grammarly, LanguageTool, etc. Please disable/uninstall such plugin(s) as your response might not get saved.</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Step 2 */}
-                <div className={`diag-check-item ${permissionsStatus === 'requesting' ? 'active' : ''}`}>
+                <div className={`diag-check-item ${permissionsStatus === 'requesting' ? 'active' : ''}`} style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
                   {permissionsStatus === 'granted' ? (
-                    <CheckCircle2 size={20} color="#28a745" className="diag-check-icon" />
+                    <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
                   ) : permissionsStatus === 'denied' ? (
-                    <Circle size={20} color="#dc3545" className="diag-check-icon" />
+                    <Circle size={24} color="#dc3545" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
                   ) : (
-                    <div className="diag-spinner-icon"></div>
+                    <div className="diag-spinner-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }}></div>
                   )}
                   <div className="diag-check-text">
-                    <strong>2. Webcam & Audio Permissions</strong>
+                    <strong style={{ color: '#142b51', fontSize: '15px' }}>2. Webcam & Audio Permissions</strong>
                     <span className="diag-check-sub">
                       {permissionsStatus === 'requesting' && "Requesting Webcam & Audio Permissions..."}
-                      {permissionsStatus === 'granted' && "Permissions Granted successfully."}
+                      {permissionsStatus === 'granted' && ""}
                       {permissionsStatus === 'denied' && (
                         <div style={{ marginTop: '10px' }}>
                           <span style={{ color: '#dc3545', display: 'block', marginBottom: '8px' }}>
@@ -526,22 +544,61 @@ const Diagnostics = () => {
                 </div>
 
                 {/* Step 3 */}
-                <div className={`diag-check-item ${screenStatus === 'requesting' ? 'active' : ''} ${screenStatus === 'pending' ? 'disabled' : ''}`}>
+                <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '20px' }}>
                   {screenStatus === 'granted' ? (
-                    <CheckCircle2 size={20} color="#28a745" className="diag-check-icon" />
+                    <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
                   ) : screenStatus === 'denied' ? (
-                    <Circle size={20} color="#dc3545" className="diag-check-icon" />
-                  ) : screenStatus === 'requesting' ? (
-                    <div className="diag-spinner-icon"></div>
+                    <Circle size={24} color="#dc3545" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
+                  ) : screenStatus === 'requesting' || (screenStatus === 'pending' && permissionsStatus === 'granted') ? (
+                    <div className="diag-spinner-icon" style={{ width: '24px', height: '24px', alignSelf: 'flex-start', marginTop: '2px', borderColor: '#2980b9', borderTopColor: 'transparent' }}></div>
                   ) : (
-                    <span className="diag-number-placeholder">3.</span>
+                    <span className="diag-number-placeholder" style={{ alignSelf: 'flex-start', marginTop: '2px', width: '24px' }}>3.</span>
                   )}
                   
                   <div className="diag-check-text">
-                    <strong>{screenStatus === 'pending' ? 'Screen Share Permission' : '3. Screen Share Permission'}</strong>
+                    <strong style={{ color: '#142b51', fontSize: '15px' }}>3. Screen Permissions</strong>
                     <span className="diag-check-sub">
+                      {screenStatus === 'pending' && permissionsStatus === 'granted' && (
+                        <div style={{ marginTop: '10px' }}>
+                          <span style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', display: 'block', marginBottom: '15px' }}>
+                            Requesting Screen Share Permissions. Please click on <strong>Start Screen Capture</strong> below.
+                          </span>
+                          <button 
+                            onClick={requestScreenShare} 
+                            style={{
+                              padding: '10px 20px', 
+                              fontSize: '14px', 
+                              cursor: 'pointer', 
+                              border: 'none', 
+                              borderRadius: '4px', 
+                              background: '#2980b9',
+                              color: 'white',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Start Screen Capture
+                          </button>
+                        </div>
+                      )}
                       {screenStatus === 'requesting' && "Requesting Screen Share Permission..."}
-                      {screenStatus === 'granted' && "Screen Sharing Granted successfully."}
+                      {screenStatus === 'granted' && (
+                        <div style={{ marginTop: '10px' }}>
+                          <span style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6' }}>
+                            Screen Share Permissions available.<br/>
+                            Click on the <strong>'Hide'</strong> Button shown below for better visibility.
+                          </span>
+                          
+                          <div style={{ border: '2px solid #bcd2e5', padding: '10px 15px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px', width: 'fit-content', backgroundColor: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                            <div style={{ display: 'flex', gap: '2px', marginRight: '5px' }}>
+                              <div style={{ width: '3px', height: '14px', background: '#6c757d' }}></div>
+                              <div style={{ width: '3px', height: '14px', background: '#6c757d' }}></div>
+                            </div>
+                            <span style={{ fontSize: '13px', color: '#142b51', fontWeight: '500' }}>nexora.com is sharing your screen.</span>
+                            <button style={{ backgroundColor: '#1441a3', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', fontWeight: '500', marginLeft: '10px', cursor: 'default' }}>Stop sharing</button>
+                            <button style={{ backgroundColor: 'transparent', color: '#1441a3', border: 'none', padding: '6px 12px', fontSize: '13px', fontWeight: '500', cursor: 'default' }}>Hide</button>
+                          </div>
+                        </div>
+                      )}
                       {screenStatus === 'denied' && (
                         <div style={{ marginTop: '10px' }}>
                           <span style={{ color: '#dc3545', display: 'block', marginBottom: '8px' }}>
@@ -580,7 +637,7 @@ const Diagnostics = () => {
                 <li>When resuming the test, follow the same steps which you took to start the test in the beginning using the same registration details.</li>
               </ol>
             </div>
-          ) : (
+          ) : currentPhase === 2 ? (
             <>
               <div className="diag-registration-header">
                 <Info size={14} className="mr-2" /> Fields marked with * are mandatory
@@ -709,18 +766,49 @@ const Diagnostics = () => {
                 )}
               </div>
             </>
-          )}
+          ) : currentPhase === 3 ? (
+            <div className="diag-ready-start">
+              <h2 style={{ fontSize: '18px', fontWeight: '500', color: '#1e293b', marginBottom: '8px' }}>All done. Ready to start?</h2>
+              <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>Select the section you would like to attempt first and then click on Start Test button.</p>
+              
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBottom: '24px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600' }}>
+                    <tr>
+                      <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>SECTION NAME</th>
+                      <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>NO. OF QUESTIONS</th>
+                      <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>DURATION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', color: '#334155' }}>
+                        <input type="radio" checked readOnly style={{ accentColor: '#1e40af', width: '16px', height: '16px', cursor: 'pointer' }} />
+                        Section #1
+                      </td>
+                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{testDetails.questions.length} Questions</td>
+                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{testDetails.duration / 60} Minutes</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <button className="diag-btn-primary" onClick={handleProceed}>Start Test</button>
+            </div>
+          ) : null}
 
           {currentPhase === 0 && (
-            <button 
-              className={`diag-proceed-btn ${
-                permissionsStatus === 'granted' && screenStatus === 'granted' ? 'enabled' : 'disabled'
-              }`}
-              onClick={handleProceed}
-              disabled={permissionsStatus !== 'granted' || screenStatus !== 'granted'}
-            >
-              Proceed
-            </button>
+            <div style={{ marginTop: '20px' }}>
+              <button 
+                className={`diag-proceed-btn ${
+                  permissionsStatus === 'granted' && screenStatus === 'granted' ? 'enabled' : 'disabled'
+                }`}
+                onClick={handleProceed}
+                disabled={permissionsStatus !== 'granted' || screenStatus !== 'granted'}
+              >
+                Proceed
+              </button>
+            </div>
           )}
 
           {currentPhase === 1 && (

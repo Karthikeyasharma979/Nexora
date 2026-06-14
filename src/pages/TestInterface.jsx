@@ -1,14 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Cloud, Clock, Maximize, Minimize, Settings, ChevronDown, 
   Grid, Calculator, Flag, Bookmark, X, AlertTriangle, MessageSquare,
-  Info, ChevronLeft, ChevronRight, Wifi, StopCircle,
-  ShieldCheck
+  Info, ChevronLeft, ChevronRight, Wifi, StopCircle, XCircle,
+  ShieldCheck, ClipboardList, List, Sun, Moon, Lock, Bell, LogOut,
+  Camera, Play, Pause
 } from 'lucide-react';
 import { playTimerWarning } from '../utils/audioUtils';
 import { getTestById, saveReport } from '../utils/db';
 import './TestInterface.css';
+
+const AnimatedDonutChart = ({ percentage }) => {
+  const [animatedPct, setAnimatedPct] = useState(0);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setAnimatedPct(percentage), 100);
+    return () => clearTimeout(timer);
+  }, [percentage]);
+  
+  const radius = 60;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (animatedPct / 100) * circumference;
+  
+  return (
+    <svg width="150" height="150" viewBox="0 0 150 150" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx="75" cy="75" r={radius} fill="transparent" stroke="var(--mettl-gray-border)" strokeWidth="30" />
+      <circle 
+        cx="75" cy="75" r={radius} fill="transparent" stroke="var(--mettl-blue)" strokeWidth="30"
+        strokeDasharray={circumference} strokeDashoffset={offset}
+        strokeLinecap="butt"
+        style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.22, 1, 0.36, 1)' }}
+      />
+    </svg>
+  );
+};
 
 const TestInterface = () => {
   const navigate = useNavigate();
@@ -26,11 +52,19 @@ const TestInterface = () => {
   const [showSectionDropdown, setShowSectionDropdown] = useState(false);
   const [filterType, setFilterType] = useState('All'); // All, Attempted, Revisited, Unattempted
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [secondsSinceSave, setSecondsSinceSave] = useState(0);
+  const lastSavedTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    lastSavedTimeRef.current = Date.now();
+    setSecondsSinceSave(0);
+  }, [answers, revisited]);
   
   // New Functional States
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoTab, setInfoTab] = useState('Test');
   const [highContrast, setHighContrast] = useState(false);
 
   useEffect(() => {
@@ -107,11 +141,12 @@ const TestInterface = () => {
   }, [testId, navigate]);
 
 
-  // Format time (MM:SS)
+  // Format time (HH:MM:SS)
   const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+    return `${h}:${m}:${s}`;
   };
 
   useEffect(() => {
@@ -143,6 +178,7 @@ const TestInterface = () => {
         }
         return newTime;
       });
+      setSecondsSinceSave(Math.floor((Date.now() - lastSavedTimeRef.current) / 1000));
     }, 1000);
     return () => clearInterval(timer);
   }, [testDetails]);
@@ -200,13 +236,13 @@ const TestInterface = () => {
     }
   }, [timeRemaining, testDetails, handleSubmitExam]);
 
-  const handleSelectOption = (optText) => {
+  const handleSelectOption = useCallback((optText) => {
     if (!testDetails) return;
     const currentQ = testDetails.questions[currentQuestionIdx];
     setAnswers(prev => ({ ...prev, [currentQ.id]: optText }));
-  };
+  }, [testDetails, currentQuestionIdx]);
 
-  const handleClearResponse = () => {
+  const handleClearResponse = useCallback(() => {
     if (!testDetails) return;
     const currentQ = testDetails.questions[currentQuestionIdx];
     setAnswers(prev => {
@@ -214,13 +250,56 @@ const TestInterface = () => {
       delete newAnswers[currentQ.id];
       return newAnswers;
     });
-  };
+  }, [testDetails, currentQuestionIdx]);
 
-  const toggleRevisit = () => {
+  const toggleRevisit = useCallback(() => {
     if (!testDetails) return;
     const currentQ = testDetails.questions[currentQuestionIdx];
     setRevisited(prev => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }));
-  };
+  }, [testDetails, currentQuestionIdx]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger shortcuts if user is typing in an input or textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (!testDetails || showSettingsDropdown || showFinishPanel || showInfoModal) return;
+
+      const totalQ = testDetails.questions.length;
+      const currentQ = testDetails.questions[currentQuestionIdx];
+
+      switch (e.key) {
+        case 'ArrowRight':
+          setCurrentQuestionIdx(prev => Math.min(totalQ - 1, prev + 1));
+          break;
+        case 'ArrowLeft':
+          setCurrentQuestionIdx(prev => Math.max(0, prev - 1));
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+          const optionIndex = parseInt(e.key) - 1;
+          if (currentQ.options && currentQ.options[optionIndex]) {
+            handleSelectOption(currentQ.options[optionIndex]);
+          }
+          break;
+        case 'c':
+        case 'C':
+          handleClearResponse();
+          break;
+        case 'r':
+        case 'R':
+          toggleRevisit();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [testDetails, currentQuestionIdx, showSettingsDropdown, showFinishPanel, showInfoModal, handleSelectOption, handleClearResponse, toggleRevisit]);
 
   if (errorReason) {
     return (
@@ -271,183 +350,363 @@ const TestInterface = () => {
   }
 
   return (
-    <div className={`ti-container ${highContrast ? 'high-contrast' : ''}`}>
+    <div className={`ti-container ${highContrast ? 'high-contrast' : ''} fade-in`}>
       {/* Global Header */}
       <header className="ti-header">
         <div className="ti-header-left">
           <div className="ti-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
-            <ShieldCheck size={24} style={{ color: '#4ade80' }} /> Nexora
+            <img src="/favicon.svg" alt="Nexora Icon" style={{ width: '24px', height: '24px' }} /> Nexora
           </div>
           <div className="ti-user-info">
             <span className="ti-user-name">{sessionStorage.getItem('candidateName') || 'Harry'}</span>
             <div className="ti-test-meta">
               <span>{testDetails.name} /</span>
               <Cloud size={14} className="ml-2 mr-1" /> 
-              <span>Saved: 0 seconds ago</span>
+              <span>Saved: {secondsSinceSave < 60 ? `${secondsSinceSave} seconds` : `${Math.floor(secondsSinceSave / 60)} minute${Math.floor(secondsSinceSave / 60) !== 1 ? 's' : ''}`} ago</span>
             </div>
           </div>
         </div>
         
         <div className="ti-header-right">
-          <div className="ti-timer">
-            <Clock size={16} className="mr-2" /> Test Time: {formatTime(timeRemaining)}
+          <div className="flex-center" style={{ fontSize: '14px', color: '#ffffff', marginRight: '20px' }}>
+            <Clock size={18} className="mr-2" style={{ color: '#e2e8f0' }} /> 
+            <span style={{ marginRight: '6px', color: '#e2e8f0' }}>Test Time:</span> 
+            <strong style={{ fontSize: '15px', letterSpacing: '0.5px' }}>{formatTime(timeRemaining)}</strong>
           </div>
-          <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.max(12, prev - 2))} title="Decrease Font Size" style={{ fontWeight: 'bold', fontSize: '12px' }}>A-</button>
-          <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.min(24, prev + 2))} title="Increase Font Size" style={{ fontWeight: 'bold', fontSize: '14px' }}>A+</button>
-          <button className="ti-icon-btn" onClick={toggleFullscreen} title="Toggle Fullscreen">
+          
+          <button className="ti-icon-btn text-white mr-3" onClick={toggleFullscreen} title="Fullscreen">
             {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
-          <button className="ti-icon-btn" onClick={() => setShowSettingsModal(true)} title="Settings"><Settings size={18} /></button>
-          <button className="ti-btn-finish" onClick={() => setShowFinishPanel(true)}>Finish Test</button>
+          
+          <div style={{ position: 'relative' }}>
+            <button className="ti-icon-btn text-white mr-4" onClick={() => setShowSettingsDropdown(!showSettingsDropdown)} title="Settings">
+              <Settings size={18} />
+            </button>
+
+            {showSettingsDropdown && (
+              <div className="slide-in-right" style={{
+                position: 'absolute', top: 'calc(100% + 5px)', right: '15px', width: '240px', 
+                backgroundColor: 'white', borderRadius: '4px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                padding: '16px', zIndex: 100, color: '#475569', border: '1px solid #e2e8f0'
+              }}>
+                {/* Font Size Settings */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Adjust Font Size</div>
+                  <div style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                    <button type="button" onClick={() => setFontSize(14)} style={{ flex: 1, padding: '8px 0', border: 'none', background: fontSize === 14 ? '#1e56a0' : 'white', color: fontSize === 14 ? 'white' : '#94a3b8', fontSize: '12px', cursor: 'pointer' }}>Aa</button>
+                    <button type="button" onClick={() => setFontSize(16)} style={{ flex: 1, padding: '8px 0', border: 'none', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', background: fontSize === 16 ? '#1e56a0' : 'white', color: fontSize === 16 ? 'white' : '#94a3b8', fontSize: '14px', cursor: 'pointer' }}>Aa</button>
+                    <button type="button" onClick={() => setFontSize(18)} style={{ flex: 1, padding: '8px 0', border: 'none', background: fontSize === 18 ? '#1e56a0' : 'white', color: fontSize === 18 ? 'white' : '#94a3b8', fontSize: '16px', cursor: 'pointer' }}>Aa</button>
+                  </div>
+                </div>
+                
+                {/* Theme Settings */}
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Change Theme</div>
+                  <div style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                    <button type="button" onClick={() => setHighContrast(false)} style={{ flex: 1, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', background: !highContrast ? '#1e56a0' : 'white', color: !highContrast ? 'white' : '#94a3b8', cursor: 'pointer' }}>
+                      <Sun size={16} />
+                    </button>
+                    <button type="button" onClick={() => setHighContrast(true)} style={{ flex: 1, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', background: highContrast ? '#1e56a0' : 'white', color: highContrast ? 'white' : '#94a3b8', cursor: 'pointer' }}>
+                      <Moon size={16} />
+                    </button>
+                    <button type="button" style={{ flex: 1, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', background: 'white', color: '#94a3b8', cursor: 'pointer', opacity: 0.5 }} disabled>
+                      <Settings size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <button 
+              onClick={() => setShowFinishPanel(true)} 
+              className="ti-finish-btn"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '8px 20px', 
+                backgroundColor: '#dc3545', 
+                border: 'none', 
+                borderRadius: '4px', 
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Finish Test
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Navigation Bar */}
       <nav className="ti-nav">
-        <div className="flex-center gap-4" style={{ position: 'relative' }}>
-          <div className="ti-section-dropdown" onClick={() => setShowSectionDropdown(!showSectionDropdown)} style={{ cursor: 'pointer' }}>
-            <span>{currentSectionIndex + 1}. {currentSectionName}</span>
-            <ChevronDown size={16} className="ml-2" />
+        <div className="ti-nav-left" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', position: 'relative' }}>
+          <div className="ti-section-dropdown" tabIndex={0} onClick={() => setShowSectionDropdown(!showSectionDropdown)} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', border: '1px solid #e2e8f0', background: 'white', color: '#334155', padding: '0 12px', height: '34px', fontSize: '14px', fontWeight: 500, borderRadius: '4px', outline: 'none' }}>
+            <span style={{ marginRight: '16px' }}>{currentSectionIndex + 1}. {currentSectionName}</span>
+            <ChevronDown size={14} strokeWidth={2.5} />
           </div>
+          <button onClick={() => setShowInfoModal(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '4px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', flexShrink: 0, outline: 'none' }}>
+            <Info size={18} fill="#334155" color="white" />
+          </button>
           
           {showSectionDropdown && (
-            <div className="ti-filter-dropdown slide-in-right" style={{ left: 0, right: 'auto', top: '100%', marginTop: '10px', minWidth: '200px', zIndex: 100 }}>
-              <div className="ti-filter-header">Jump to Section</div>
+            <div className="ti-filter-dropdown slide-in-right" style={{ left: 0, right: 'auto', top: '100%', marginTop: '10px', minWidth: '280px', zIndex: 100, padding: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {sections.map((s, idx) => (
-                  <button 
-                    key={idx}
-                    type="button"
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      backgroundColor: currentSectionName === s.name ? '#f0f9ff' : 'white',
-                      border: 'none',
-                      borderBottom: '1px solid #eaeaea',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: currentSectionName === s.name ? '#1e56a0' : '#495057',
-                      fontWeight: currentSectionName === s.name ? '600' : '400'
-                    }}
-                    onClick={() => {
-                      setCurrentQuestionIdx(s.startIndex);
-                      setShowSectionDropdown(false);
-                    }}
-                  >
-                    {idx + 1}. {s.name} <span style={{ fontSize: '11px', color: '#6c757d', marginLeft: '8px' }}>({s.count} Qs)</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+                {sections.map((s, idx) => {
+                  // Calculate completion percentage
+                  let answered = 0;
+                  for (let i = s.startIndex; i < s.startIndex + s.count; i++) {
+                    const qId = testDetails.questions[i].id;
+                    if (answers[qId] !== undefined) answered++;
+                  }
+                  const percentage = Math.round((answered / s.count) * 100);
+                  const isActive = currentSectionName === s.name;
 
-          <button type="button" className="ti-icon-btn" style={{ color: '#1e56a0', border: '1px solid #dcdfe4', padding: '2px 6px', borderRadius: '4px' }} onClick={() => setShowInfoModal(true)} title="Test Information">
-            <Info size={14} />
-          </button>
-        </div>
-        
-        <div className="ti-pagination-wrapper">
-          <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
-            <ChevronLeft size={18} />
-          </button>
-
-          <div className="ti-pagination">
-            {Array.from({ length: sections[currentSectionIndex].count }).map((_, i) => {
-              const idx = sections[currentSectionIndex].startIndex + i;
-              const q = testDetails.questions[idx];
-              let statusClass = 'unattempted';
-              if (answers[q.id] !== undefined) {
-                statusClass = 'attempted';
-              } else if (revisited[q.id]) {
-                statusClass = 'revisited';
-              } else if (viewed[q.id] && currentQuestionIdx !== idx) {
-                statusClass = 'skipped';
-              }
-              
-              return (
-                <button 
-                  type="button"
-                  key={q.id} 
-                  className={`ti-page-num ${statusClass} ${currentQuestionIdx === idx ? 'active' : ''}`}
-                  onClick={() => setCurrentQuestionIdx(idx)}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-
-          <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === totalQ - 1} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>
-            <ChevronRight size={18} />
-          </button>
-          
-          <div className="ti-filter-tools">
-            <button type="button" className="ti-icon-btn" onClick={() => setShowFilterDropdown(!showFilterDropdown)}>
-              <Grid size={16} />
-            </button>
-          </div>
-          <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
-
-          {/* Filter Dropdown Popup */}
-          {showFilterDropdown && (
-            <div className="ti-filter-dropdown slide-in-right">
-              <div className="ti-filter-header">Filter by</div>
-              <div className="ti-filter-tabs">
-                {['All', 'Attempted', 'Revisited', 'Unattempted'].map(tab => (
-                  <div 
-                    key={tab} 
-                    className={`ti-filter-tab ${filterType === tab ? 'active' : ''}`}
-                    onClick={() => setFilterType(tab)}
-                  >
-                    {tab}
-                  </div>
-                ))}
-              </div>
-              <div className="ti-filter-grid">
-                {displayedQuestions.map(({ q, originalIndex }) => {
-                  let statusClass = 'unattempted';
-                  if (answers[q.id] !== undefined) statusClass = 'attempted';
-                  else if (revisited[q.id]) statusClass = 'revisited';
-                  
                   return (
                     <button 
+                      key={idx}
                       type="button"
-                      key={q.id} 
-                      className={`ti-page-num ${statusClass} ${currentQuestionIdx === originalIndex ? 'active' : ''}`}
-                      onClick={() => {
-                        setCurrentQuestionIdx(originalIndex);
-                        setShowFilterDropdown(false);
+                      style={{
+                        padding: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: isActive ? 'white' : '#cbd5e1',
+                        border: 'none',
+                        borderBottom: '1px solid white',
+                        cursor: 'pointer',
+                        textAlign: 'left'
                       }}
-                      style={{ border: '1px solid #dcdfe4' }}
+                      onClick={() => {
+                        setCurrentQuestionIdx(s.startIndex);
+                        setShowSectionDropdown(false);
+                      }}
                     >
-                      {originalIndex - sections[currentSectionIndex].startIndex + 1}
+                      {/* Left Icon Block */}
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isActive ? '#1e56a0' : '#e2e8f0',
+                        color: isActive ? 'white' : '#1e293b',
+                        fontWeight: 'bold',
+                        fontSize: '15px',
+                        flexShrink: 0
+                      }}>
+                        {isActive ? (idx + 1) : <Lock size={16} color="#1e293b" />}
+                      </div>
+
+                      {/* Right Content Block */}
+                      <div style={{ marginLeft: '16px', flex: 1 }}>
+                        <div style={{ 
+                          fontSize: '15px', 
+                          color: isActive ? '#334155' : 'white', 
+                          marginBottom: '6px'
+                        }}>
+                          {s.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ 
+                            fontSize: '11px', 
+                            color: isActive ? '#64748b' : 'white'
+                          }}>
+                            {percentage}% done
+                          </span>
+                          <div style={{ 
+                            flex: 1, 
+                            height: '4px', 
+                            backgroundColor: isActive ? '#e2e8f0' : '#f8fafc',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{ 
+                              width: `${percentage}%`, 
+                              height: '100%', 
+                              backgroundColor: isActive ? '#1e293b' : '#cbd5e1',
+                              transition: 'width 0.3s ease'
+                            }} />
+                          </div>
+                        </div>
+                      </div>
                     </button>
                   );
                 })}
               </div>
-              <div className="ti-filter-legend mt-4">
-                <div className="flex-center"><span className="legend-dot bg-blue"></span> Attempted</div>
-                <div className="flex-center"><span className="legend-dot bg-orange"></span> Revisited</div>
-                <div className="flex-center"><span className="legend-dot bg-gray"></span> Unattempted</div>
-              </div>
             </div>
           )}
         </div>
+        
+        <div className="ti-nav-center-wrapper" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', overflow: 'visible', padding: '0 20px', minWidth: 0 }}>
+          
+          <div className="ti-nav-center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', minWidth: 0 }}>
+            <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
+              <ChevronLeft size={16} />
+            </button>
 
-        <div className="ti-nav-right">
-          <button type="button" className="ti-btn-outline" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
-            Previous
-          </button>
-          {currentQuestionIdx === totalQ - 1 ? (
-            <button type="button" className="ti-btn-next" style={{ backgroundColor: '#1e56a0', color: 'white' }} onClick={() => setShowFinishPanel(true)}>Submit</button>
-          ) : (
-            <button type="button" className="ti-btn-next" onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>Next</button>
-          )}
+            <div className="ti-pagination" style={{ gap: '2px', display: 'flex', margin: '0 10px' }}>
+              {Array.from({ length: sections[currentSectionIndex].count }).map((_, i) => {
+                const idx = sections[currentSectionIndex].startIndex + i;
+                const q = testDetails.questions[idx];
+                let statusClass = 'unattempted';
+                if (revisited[q.id]) statusClass = 'revisited';
+                else if (answers[q.id] !== undefined) statusClass = 'attempted';
+                else if (viewed[q.id] && currentQuestionIdx !== idx) statusClass = 'skipped';
+                
+                return (
+                  <button 
+                    type="button"
+                    key={q.id} 
+                    className={`ti-page-num ${statusClass} ${currentQuestionIdx === idx ? 'active' : ''}`}
+                    onClick={() => setCurrentQuestionIdx(idx)}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === totalQ - 1} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>
+              <ChevronRight size={16} />
+            </button>
+
+            {/* Filter / Grid Menu Button */}
+            <div style={{ position: 'relative', marginLeft: '8px' }}>
+              <button 
+                type="button" 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '36px',
+                  height: '36px',
+                  backgroundColor: 'white',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              >
+                <List size={18} color="#1e293b" />
+              </button>
+
+              {/* Filter Dropdown Popup */}
+              {showFilterDropdown && (
+                <div className="ti-filter-dropdown slide-in-right" style={{ right: 0, left: 'auto', transform: 'none', top: '100%', marginTop: '10px', zIndex: 100, position: 'absolute', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '20px', width: '380px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <div className="ti-filter-header" style={{ margin: 0, fontWeight: 'bold', fontSize: '16px' }}>Filter by</div>
+                  <X size={18} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => setShowFilterDropdown(false)} />
+                </div>
+                <div className="ti-filter-tabs" style={{ display: 'flex', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden', marginBottom: '20px' }}>
+                  {['All', 'Attempted', 'Revisited', 'Unattempted'].map((tab, idx) => (
+                    <div 
+                      key={tab} 
+                      className={`ti-filter-tab ${filterType === tab ? 'active' : ''}`}
+                      onClick={() => setFilterType(tab)}
+                      style={{ 
+                        flex: 1, 
+                        textAlign: 'center', 
+                        padding: '10px 0', 
+                        fontSize: '13px', 
+                        cursor: 'pointer',
+                        borderRight: idx !== 3 ? '1px solid #cbd5e1' : 'none',
+                        backgroundColor: filterType === tab ? '#1e56a0' : 'white',
+                        color: filterType === tab ? 'white' : '#1e293b'
+                      }}
+                    >
+                      {tab}
+                    </div>
+                  ))}
+                </div>
+                <div className="ti-filter-grid" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {displayedQuestions.map(({ q, originalIndex }) => {
+                    let statusClass = 'unattempted';
+                    if (revisited[q.id]) statusClass = 'revisited';
+                    else if (answers[q.id] !== undefined) statusClass = 'attempted';
+                    
+                    return (
+                      <button 
+                        type="button"
+                        key={q.id} 
+                        className={`ti-page-num ${statusClass} ${currentQuestionIdx === originalIndex ? 'active' : ''}`}
+                        onClick={() => {
+                          setCurrentQuestionIdx(originalIndex);
+                          setShowFilterDropdown(false);
+                        }}
+                        style={{ 
+                          width: '45px', 
+                          height: '45px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          borderRadius: '8px', 
+                          fontSize: '16px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {originalIndex - sections[currentSectionIndex].startIndex + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="ti-filter-legend mt-4" style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '25px', fontSize: '13px', color: '#64748b' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#1e56a0', marginRight: '6px' }}></span> Attempted</div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', marginRight: '6px' }}></span> Revisited</div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#64748b', marginRight: '6px' }}></span> Unattempted</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+          
+        <div className="ti-nav-right-wrapper" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', border: '1px solid #1e3a8a', borderRadius: '4px', overflow: 'hidden' }}>
+            <button type="button" className="ti-btn-outline" style={{ border: 'none', borderRight: '1px solid #1e3a8a', color: '#1e3a8a', background: 'white', padding: '6px 16px', borderRadius: 0, fontSize: '13px' }} disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
+              Previous
+            </button>
+            {currentQuestionIdx === totalQ - 1 ? (
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setShowFinishPanel(true)}>Submit</button>
+            ) : (
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>Next</button>
+            )}
+          </div>
+        </div>
+        
+        <div className="ti-attempt-count" style={{ 
+          position: 'absolute', 
+          top: '100%', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          height: '24px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          padding: '0 30px', 
+          marginTop: '-1px',
+          zIndex: 10,
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none'
+        }}>
+          <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 24" style={{ position: 'absolute', top: 0, left: 0, zIndex: -1, width: '100%', height: '100%' }}>
+            <path d="M0 0 L10 21 Q12 24 16 24 L84 24 Q88 24 90 21 L100 0" fill="white" stroke="#e2e8f0" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <line x1="0" y1="0" x2="100" y2="0" stroke="white" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#334155', zIndex: 1, paddingBottom: '2px' }}>
+            Attempted: {attemptedCount}/{totalQ}
+          </span>
         </div>
       </nav>
 
       {/* Main Content Area */}
-      <main className="ti-main">
+      <main key={currentQuestionIdx} className="ti-main fade-in">
+        <div className="ti-watermark-overlay"></div>
         {/* Floating Side Arrows */}
         <button 
           type="button"
@@ -469,22 +728,24 @@ const TestInterface = () => {
 
         <div className="ti-pane-left">
           <div className="ti-question-header">
-            <div className="ti-q-number">
+            <div className="ti-q-number" style={{ fontSize: '18px', color: '#1e3a8a', display: 'flex', alignItems: 'center' }}>
               Question {currentQuestionIdx - sections[currentSectionIndex].startIndex + 1}
-              <Flag size={14} className="ml-2 text-primary cursor-pointer" />
-            </div>
-            <div className="ti-revisit-flag" onClick={toggleRevisit}>
-              <Bookmark size={14} className={`mr-1 ${revisited[currentQ.id] ? 'fill-current text-orange' : ''}`} /> Revisit Later
+              <Flag 
+                size={14} 
+                className={`ml-2 cursor-pointer ${revisited[currentQ.id] ? 'fill-current' : ''}`} 
+                style={{ color: '#3b82f6' }} 
+                onClick={toggleRevisit}
+              />
             </div>
           </div>
-          <div className="ti-question-text" style={{ fontSize: `${fontSize}px` }}>
+          <div className="ti-question-text" style={{ fontSize: `${fontSize}px`, marginTop: '15px' }}>
             {currentQ.text}
           </div>
         </div>
         
         <div className="ti-pane-right">
           <div className="ti-options-header">
-            <span>Select an option</span>
+            <span style={{ fontSize: '15px', color: '#1e293b' }}>Select an option</span>
             <button type="button" className="ti-clear-btn" onClick={handleClearResponse}>Clear Response</button>
           </div>
           <div className="ti-options-list">
@@ -535,15 +796,14 @@ const TestInterface = () => {
               </div>
               <div className="flex-center text-sm">
                 <Clock size={14} className="mr-2" /> Remaining Time: {formatTime(timeRemaining)}
-                <X size={20} className="ml-4 cursor-pointer" onClick={() => setShowFinishPanel(false)} />
+                <XCircle size={24} className="ml-6 cursor-pointer" strokeWidth={1.5} color="#94a3b8" onClick={() => setShowFinishPanel(false)} />
               </div>
             </div>
 
             <div className="ti-finish-body">
               <div className="ti-summary-section">
                 <div className="ti-donut-chart">
-                  {/* CSS Donut Chart */}
-                  <div className="donut" style={{ '--percentage': (attemptedCount / totalQ) * 100 }}></div>
+                  <AnimatedDonutChart percentage={totalQ > 0 ? (attemptedCount / totalQ) * 100 : 0} />
                 </div>
                 <div className="ti-summary-stats">
                   <div className="text-sm text-secondary">Your Test Summary</div>
@@ -593,82 +853,127 @@ const TestInterface = () => {
               </div>
             </div>
 
-            <div className="ti-finish-footer">
+            <div className="ti-finish-footer" style={{ display: 'flex', gap: '15px' }}>
               <button 
                 type="button" 
-                className="btn-primary w-full" 
+                style={{ backgroundColor: '#e63946', color: 'white', padding: '12px 24px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
                 onClick={() => handleSubmitExam('Completed')}
               >
-                Submit Exam
+                Yes, End Test!
+              </button>
+              <button 
+                type="button" 
+                style={{ backgroundColor: 'white', color: '#64748b', padding: '12px 24px', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}
+                onClick={() => setShowFinishPanel(false)}
+              >
+                No, Back to Test
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <div className="ti-finish-overlay" style={{ zIndex: 1000 }}>
-          <div className="ti-finish-panel">
-            <div className="ti-finish-header">
-              <div className="flex-center">
-                <Settings size={18} className="mr-2" style={{ color: '#1e56a0' }} />
-                <span>Test Settings</span>
-              </div>
-              <X size={20} className="cursor-pointer" onClick={() => setShowSettingsModal(false)} />
-            </div>
-            <div className="ti-finish-body" style={{ padding: '20px' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <strong style={{ display: 'block', marginBottom: '10px' }}>Visual Preferences</strong>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={highContrast} 
-                    onChange={(e) => setHighContrast(e.target.checked)} 
-                    style={{ marginRight: '10px' }}
-                  />
-                  Enable High Contrast Mode
-                </label>
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <strong style={{ display: 'block', marginBottom: '10px' }}>Font Size ({fontSize}px)</strong>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="btn-secondary" onClick={() => setFontSize(prev => Math.max(12, prev - 2))}>A-</button>
-                  <button className="btn-secondary" onClick={() => setFontSize(prev => Math.min(24, prev + 2))}>A+</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Info Modal */}
+      {/* Info Side Panel */}
       {showInfoModal && (
-        <div className="ti-finish-overlay" style={{ zIndex: 1000 }}>
-          <div className="ti-finish-panel">
-            <div className="ti-finish-header">
-              <div className="flex-center">
-                <Info size={18} className="mr-2" style={{ color: '#1e56a0' }} />
-                <span>Test Information</span>
+        <>
+          <div className="ti-finish-overlay" style={{ zIndex: 999 }} onClick={() => setShowInfoModal(false)}></div>
+          <div className="slide-in-right ti-info-panel" style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '450px',
+            backgroundColor: 'white',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '-4px 0 15px rgba(0,0,0,0.1)'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1e56a0', fontWeight: 'bold', fontSize: '18px' }}>
+                <Info size={20} />
+                Instructions
               </div>
-              <X size={20} className="cursor-pointer" onClick={() => setShowInfoModal(false)} />
+              <button onClick={() => setShowInfoModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
             </div>
-            <div className="ti-finish-body" style={{ padding: '20px' }}>
-              <h3 style={{ marginTop: 0 }}>{testDetails.name}</h3>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.6', color: '#475569' }}>
-                <li><strong>Total Questions:</strong> {totalQ}</li>
-                <li><strong>Duration:</strong> {testDetails.duration / 60} Minutes</li>
-                <li><strong>Passing Score:</strong> {testDetails.passPercentage || 40}%</li>
-              </ul>
-              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8fafc', borderLeft: '4px solid #1e56a0' }}>
-                <strong style={{ color: '#1e293b' }}>Important Instructions:</strong>
-                <p style={{ fontSize: '13px', margin: '10px 0 0 0', color: '#64748b' }}>
-                  Do not refresh the page or attempt to leave the full-screen mode. Doing so may result in your test being terminated automatically.
-                </p>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', padding: '0 24px' }}>
+              <button 
+                onClick={() => setInfoTab('Section')}
+                style={{ 
+                  flex: 1, 
+                  padding: '16px 0', 
+                  background: 'none', 
+                  border: 'none', 
+                  borderBottom: infoTab === 'Section' ? '2px solid #1e56a0' : '2px solid transparent',
+                  color: infoTab === 'Section' ? '#1e56a0' : '#64748b',
+                  fontWeight: infoTab === 'Section' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Section Instructions
+              </button>
+              <button 
+                onClick={() => setInfoTab('Test')}
+                style={{ 
+                  flex: 1, 
+                  padding: '16px 0', 
+                  background: 'none', 
+                  border: 'none', 
+                  borderBottom: infoTab === 'Test' ? '2px solid #1e56a0' : '2px solid transparent',
+                  color: infoTab === 'Test' ? '#1e56a0' : '#64748b',
+                  fontWeight: infoTab === 'Test' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Test Instructions
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="ti-info-panel-content" style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}>
+              
+              {/* Only show test stats if we are on the Test Instructions tab */}
+              {infoTab === 'Test' && (
+                <div style={{ width: '100%', marginBottom: '40px' }}>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <div style={{ flex: 1, padding: '12px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e56a0' }}>{totalQ}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px', fontWeight: '600' }}>Questions</div>
+                    </div>
+                    <div style={{ flex: 1, padding: '12px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e56a0' }}>{testDetails.duration / 60}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px', fontWeight: '600' }}>Minutes</div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ padding: '16px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', borderLeft: '4px solid #f59e0b', borderRadius: '4px', display: 'flex', gap: '12px' }}>
+                    <AlertTriangle size={20} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <strong style={{ color: '#92400e', fontSize: '14px', display: 'block', marginBottom: '4px' }}>Important Instructions</strong>
+                      <p style={{ fontSize: '13px', margin: 0, color: '#b45309', lineHeight: '1.5' }}>
+                        Do not refresh the page or attempt to leave the full-screen mode. Doing so may result in your test being terminated automatically.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Empty State */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#64748b', margin: 'auto 0' }}>
+                <ClipboardList size={64} color="#cbd5e1" strokeWidth={1} style={{ marginBottom: '20px' }} />
+                <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>No specific Instructions for this {infoTab === 'Test' ? 'Test' : 'Section'}</p>
               </div>
+              
             </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>

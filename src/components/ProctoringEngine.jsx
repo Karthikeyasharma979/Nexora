@@ -6,7 +6,7 @@ import { playViolationWarning } from '../utils/audioUtils';
 import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
-const ProctoringEngine = ({ children, requireCamera = true }) => {
+const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true }) => {
   const isElectron = window.secure?.isNexoraKiosk === true;
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
@@ -31,38 +31,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
   const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="13" fill="#000000" opacity="1" transform="rotate(-30 150 100)">${watermarkText}</text></svg>`;
   const svgWatermark = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
 
-  // --- PRE-CRIME MOUSE TRACKING ---
-  useEffect(() => {
-    let warningTimeout;
-    const handleMouseMove = (e) => {
-      const now = Date.now();
-      const dt = now - lastMousePos.current.time;
-      
-      if (dt > 25) { 
-        const dy = e.clientY - lastMousePos.current.y;
-        const velocityY = dy / dt; // Negative is UP
-        
-        // Rapid upward movement towards the top URL bar/tabs area
-        if (velocityY < -1.2 && e.clientY < 80) {
-          setShowPreCrimeWarning(true);
-          
-          clearTimeout(warningTimeout);
-          warningTimeout = setTimeout(() => {
-            setShowPreCrimeWarning(false);
-          }, 3000); 
-        }
-        
-        lastMousePos.current = { y: e.clientY, time: now };
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      clearTimeout(warningTimeout);
-    };
-  }, []);
-  // --------------------------------
+  // --- PRE-CRIME MOUSE TRACKING REMOVED ---
 
   // --- MOBILE ---
 
@@ -131,7 +100,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
   };
 
   useEffect(() => {
-    // 1. Tab Switching Detection
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         addViolation('TAB_SWITCH', 'Candidate navigated away from the test tab.', 'WARNING: Navigating away from the test is prohibited. This violation has been recorded.');
@@ -146,8 +115,6 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
         return;
       }
       
-      // Check if the document actually lost focus to avoid false positives 
-      // from clicking internal UI elements like SVGs or absolute buttons
       if (document.hasFocus && document.hasFocus()) {
         return;
       }
@@ -402,6 +369,11 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
     };
 
     const startVideo = () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error("mediaDevices API not available");
+        addViolation('CAMERA_DENIED', 'Camera/Mic access was denied or failed.', 'WARNING: Camera access failed. Please ensure it is plugged in and permissions are granted.');
+        return;
+      }
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then((stream) => {
           if (videoRef.current) {
@@ -454,7 +426,9 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
         startVideo();
       }
     };
-    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    }
 
     // Load models from CDN and NPM
     const loadModels = async () => {
@@ -493,19 +467,7 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
         style={{ backgroundImage: `url("${svgWatermark}")` }}
       />
 
-      
-      {/* Pre-Crime Warning Overlay */}
-      {showPreCrimeWarning && (
-        <div className="pre-crime-overlay">
-          <div className="pre-crime-modal">
-            <AlertTriangle size={48} color="#f59e0b" style={{ margin: '0 auto 15px auto', display: 'block' }} />
-            <h3>Focus Warning</h3>
-            <p>Please keep your mouse within the test area.</p>
-          </div>
-        </div>
-      )}
-
-      {/* Massive Full-Screen Violation Lock removed as requested */}
+      {/* Pre-Crime Warning Overlay Removed */}      {/* Massive Full-Screen Violation Lock removed as requested */}
 
       {/* Floating Proctoring Camera Widget */}
       {requireCamera && (
@@ -537,33 +499,33 @@ const ProctoringEngine = ({ children, requireCamera = true }) => {
               {isCameraMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </div>
           </div>
+        </div>
+      )}
 
-
-
-          {activeWarning && !isCameraMinimized && (
-             <div className={`proctoring-toast ${violationLevel === 'severe' ? 'severe' : 'warning'}`}>
-               <AlertTriangle size={24} color={violationLevel === 'severe' ? '#ef4444' : '#f59e0b'} style={{ flexShrink: 0 }} />
-               <div>
-                 <strong style={{ display: 'block', marginBottom: '4px' }}>{proctoringStatus}</strong>
-                 <div style={{ fontSize: '13px', opacity: 0.9 }}>{activeWarning}</div>
-                 {(activeWarning.includes('WARNING: Navigating') || activeWarning.includes('WARNING: You must remain')) && (
-                   <button 
-                     onClick={dismissWarning}
-                     style={{
-                       marginTop: '10px', padding: '6px 12px', backgroundColor: 'rgba(255,255,255,0.15)', 
-                       border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', color: 'white', cursor: 'pointer', fontSize: '12px',
-                       fontWeight: '500', transition: 'all 0.2s', width: '100%'
-                     }}
-                     onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.25)'}
-                     onMouseOut={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.15)'}
-                   >
-                     Acknowledge & Return
-                   </button>
-                 )}
-               </div>
+      {/* Global Violation Toast - Always visible when there is an active warning */}
+      {activeWarning && (
+        <div className="proctoring-hud-container" style={{ display: 'flex', pointerEvents: 'none' }}>
+           <div className={`proctoring-toast ${violationLevel === 'severe' ? 'severe' : 'warning'}`} style={{ pointerEvents: 'auto' }}>
+             <AlertTriangle size={24} color={violationLevel === 'severe' ? '#ef4444' : '#f59e0b'} style={{ flexShrink: 0 }} />
+             <div>
+               <strong style={{ display: 'block', marginBottom: '4px' }}>{proctoringStatus}</strong>
+               <div style={{ fontSize: '13px', opacity: 0.9 }}>{activeWarning}</div>
+               {(activeWarning.includes('WARNING: Navigating') || activeWarning.includes('WARNING: You must remain')) && (
+                 <button 
+                   onClick={dismissWarning}
+                   style={{
+                     marginTop: '10px', padding: '6px 12px', backgroundColor: 'rgba(255,255,255,0.15)', 
+                     border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', color: 'white', cursor: 'pointer', fontSize: '12px',
+                     fontWeight: '500', transition: 'all 0.2s', width: '100%'
+                   }}
+                   onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.25)'}
+                   onMouseOut={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.15)'}
+                 >
+                   Acknowledge & Return
+                 </button>
+               )}
              </div>
-          )}
-
+           </div>
         </div>
       )}
 

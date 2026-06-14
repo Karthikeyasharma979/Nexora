@@ -387,9 +387,12 @@ app.post('/api/reports', async (req, res) => {
     const score = `${correctCount}/${totalQuestions}`;
 
     // Generate AI Recommendation
-    let aiRecommendation = "Good effort on your test. Keep practicing to improve further!";
+    let aiRecommendation = status === 'Terminated' 
+      ? "Test was terminated due to a proctoring violation. No AI recommendation available." 
+      : "Good effort on your test. Keep practicing to improve further!";
+      
     const githubToken = process.env.GITHUB_TOKEN;
-    if (githubToken) {
+    if (githubToken && status !== 'Terminated') {
       try {
         const client = new OpenAI({ baseURL: "https://models.github.ai/inference", apiKey: githubToken });
         let userPrompt = `Student scored ${score}. Total Violations: ${violations ? violations.length : 0}. `;
@@ -420,8 +423,8 @@ app.post('/api/reports', async (req, res) => {
       const savedReport = { ...newReportData, _id: Date.now().toString(), createdAt: new Date().toISOString() };
       inMemoryReports.unshift(savedReport);
       
-      // Send Email asynchronously
-      if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+      // Send Email asynchronously only if not terminated
+      if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD && status !== 'Terminated') {
         sendResultEmail(candidateEmail, candidateName, savedReport._id, test ? test.name : testId, score, aiRecommendation, origin).catch(err => console.error("Email send failed:", err));
       }
       
@@ -431,8 +434,8 @@ app.post('/api/reports', async (req, res) => {
     const newReport = new Report(newReportData);
     await newReport.save();
     
-    // Send Email asynchronously
-    if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+    // Send Email asynchronously only if not terminated
+    if (candidateEmail && process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD && status !== 'Terminated') {
       sendResultEmail(candidateEmail, candidateName, newReport._id.toString(), test ? test.name : testId, score, aiRecommendation, origin).catch(err => console.error("Email send failed:", err));
     }
     
