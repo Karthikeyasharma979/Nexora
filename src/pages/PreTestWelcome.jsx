@@ -30,6 +30,12 @@ const PreTestWelcome = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPlaying, setIsCarouselPlaying] = useState(true);
   const [showCookieBanner, setShowCookieBanner] = useState(true);
+  const [showCookieManager, setShowCookieManager] = useState(false);
+  const [cookieSettings, setCookieSettings] = useState({
+    essential: true,
+    analytics: false,
+    marketing: false
+  });
   const [timeError, setTimeError] = useState(null);
 
   useEffect(() => {
@@ -175,7 +181,7 @@ const PreTestWelcome = () => {
           <span>🇮🇳 +91 80471-89190</span>
         </div>
         <div className="pt-footer-links">
-          <a href="#">Manage cookies</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setShowCookieManager(true); }}>Manage cookies</a>
           <a href="#">Privacy Notice</a>
           <a href="#">Terms of Services</a>
         </div>
@@ -192,7 +198,70 @@ const PreTestWelcome = () => {
           </div>
           <div className="pt-cookie-actions">
             <button className="pt-cookie-btn primary" onClick={() => setShowCookieBanner(false)}>Okay</button>
-            <button className="pt-cookie-btn secondary">Manage Cookies</button>
+            <button className="pt-cookie-btn secondary" onClick={() => { setShowCookieBanner(false); setShowCookieManager(true); }}>Manage Cookies</button>
+          </div>
+        </div>
+      )}
+
+      {/* Cookie Manager Modal */}
+      {showCookieManager && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '10px', width: '90%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#0f172a' }}>Manage Cookie Preferences</h3>
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
+              We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                <div>
+                  <strong style={{ color: '#1e293b', fontSize: '14px' }}>Essential Cookies</strong>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>Required for the website to function.</p>
+                </div>
+                <input type="checkbox" checked={true} disabled style={{ accentColor: '#1e56a0', width: '18px', height: '18px' }} />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                <div>
+                  <strong style={{ color: '#1e293b', fontSize: '14px' }}>Analytics Cookies</strong>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>Help us understand how visitors interact with the site.</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={cookieSettings.analytics} 
+                  onChange={(e) => setCookieSettings({...cookieSettings, analytics: e.target.checked})}
+                  style={{ accentColor: '#1e56a0', width: '18px', height: '18px', cursor: 'pointer' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong style={{ color: '#1e293b', fontSize: '14px' }}>Marketing Cookies</strong>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>Used to deliver relevant advertisements.</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={cookieSettings.marketing} 
+                  onChange={(e) => setCookieSettings({...cookieSettings, marketing: e.target.checked})}
+                  style={{ accentColor: '#1e56a0', width: '18px', height: '18px', cursor: 'pointer' }} 
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                onClick={() => setShowCookieManager(false)}
+                style={{ padding: '8px 16px', border: '1px solid #cbd5e1', backgroundColor: 'transparent', borderRadius: '6px', cursor: 'pointer', color: '#475569', fontWeight: '500' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setShowCookieManager(false)}
+                style={{ padding: '8px 16px', border: 'none', backgroundColor: '#1e56a0', borderRadius: '6px', cursor: 'pointer', color: 'white', fontWeight: '500' }}
+              >
+                Save Preferences
+              </button>
+            </div>
           </div>
         </div>
       )}

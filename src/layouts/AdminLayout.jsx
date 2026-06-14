@@ -10,7 +10,7 @@ const AdminLayout = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+  const [showNotifications, setShowNotifications] = useState(false);
   // Resolve current active tab from query parameters, defaulting to 'dashboard'
   const activeTab = searchParams.get('tab') || 'dashboard';
 
@@ -92,11 +92,34 @@ const AdminLayout = () => {
               <input type="text" placeholder="Search tests, candidates..." />
             </div>
           </div>
-          <div className="topbar-actions">
-            <button className="icon-btn">
+          <div className="topbar-actions" style={{ position: 'relative' }}>
+            <button className="icon-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications">
               <Bell size={20} />
-              <span className="notification-badge"></span>
+              <span className="notification-badge" style={{ display: 'block' }}>2</span>
             </button>
+            
+            {showNotifications && (
+              <div style={{ position: 'absolute', top: '100%', right: '40px', width: '300px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, marginTop: '10px' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', color: '#1e293b' }}>Notifications</h4>
+                  <span style={{ fontSize: '12px', color: '#3b82f6', cursor: 'pointer' }} onClick={() => setShowNotifications(false)}>Mark all read</span>
+                </div>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', backgroundColor: '#f8fafc' }}>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#334155', fontWeight: '500' }}>New candidate registered</p>
+                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>2 minutes ago</span>
+                  </div>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', backgroundColor: '#f8fafc' }}>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#334155', fontWeight: '500' }}>Test 'Software Engineering' completed</p>
+                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>1 hour ago</span>
+                  </div>
+                </div>
+                <div style={{ padding: '10px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '12px', color: '#3b82f6', cursor: 'pointer' }}>View all notifications</span>
+                </div>
+              </div>
+            )}
+
             <button className="icon-btn" onClick={handleLogout} title="Logout">
               <LogOut size={20} />
             </button>

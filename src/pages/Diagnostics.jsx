@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import { getTestById } from '../utils/db';
-import { CheckCircle2, Circle, Laptop, Grid, Info, User, ClipboardList, MessageSquare, Check, X as XIcon, Camera, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Circle, Laptop, Grid, Info, User, ClipboardList, MessageSquare, Check, X as XIcon, Camera, AlertTriangle, Send } from 'lucide-react';
 import './Diagnostics.css';
 
 const Diagnostics = () => {
@@ -26,6 +26,10 @@ const Diagnostics = () => {
   const [candidateEmail, setCandidateEmail] = useState('');
   const [captureError, setCaptureError] = useState('');
   
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState([{ text: 'Hi! How can we help you today?', sender: 'agent' }]);
+  const [chatInput, setChatInput] = useState('');
+
   const [gatewayTimer, setGatewayTimer] = useState(60);
   
   const videoRef = useRef(null);
@@ -741,9 +745,63 @@ const Diagnostics = () => {
       </footer>
 
       {/* Floating Chat */}
-      <button className="diag-chat-fab">
-        Chat Now <MessageSquare size={16} className="ml-2" />
-      </button>
+      {showChat ? (
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', width: '300px', backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 5px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', zIndex: 1000, overflow: 'hidden' }}>
+          <div style={{ padding: '15px', backgroundColor: '#1e56a0', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={18} /> <strong style={{ fontSize: '14px' }}>Live Support</strong>
+            </div>
+            <XIcon size={18} style={{ cursor: 'pointer' }} onClick={() => setShowChat(false)} />
+          </div>
+          
+          <div style={{ padding: '15px', height: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#f8fafc' }}>
+            {chatMessages.map((msg, idx) => (
+              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#1e56a0' : '#e2e8f0', color: msg.sender === 'user' ? 'white' : '#1e293b', padding: '8px 12px', borderRadius: '12px', fontSize: '13px', maxWidth: '80%' }}>
+                {msg.text}
+              </div>
+            ))}
+          </div>
+          
+          <div style={{ padding: '10px', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px', backgroundColor: 'white' }}>
+            <input 
+              type="text" 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (!chatInput.trim()) return;
+                  const newMsg = { text: chatInput, sender: 'user' };
+                  setChatMessages(prev => [...prev, newMsg]);
+                  setChatInput('');
+                  setTimeout(() => {
+                    setChatMessages(prev => [...prev, { text: 'Our support agents are currently busy. Please wait, or email support@nexora.com', sender: 'agent' }]);
+                  }, 1000);
+                }
+              }}
+              placeholder="Type a message..." 
+              style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '20px', outline: 'none', fontSize: '13px' }}
+            />
+            <button 
+              onClick={() => {
+                if (!chatInput.trim()) return;
+                const newMsg = { text: chatInput, sender: 'user' };
+                setChatMessages(prev => [...prev, newMsg]);
+                setChatInput('');
+                setTimeout(() => {
+                  setChatMessages(prev => [...prev, { text: 'Our support agents are currently busy. Please wait, or email support@nexora.com', sender: 'agent' }]);
+                }, 1000);
+              }}
+              style={{ background: '#1e56a0', color: 'white', border: 'none', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="diag-chat-fab" onClick={() => setShowChat(true)}>
+          Chat Now <MessageSquare size={16} className="ml-2" />
+        </button>
+      )}
     </div>
   );
 };

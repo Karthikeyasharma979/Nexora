@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  Cloud, Clock, Maximize, Settings, ChevronDown, 
+  Cloud, Clock, Maximize, Minimize, Settings, ChevronDown, 
   Grid, Calculator, Flag, Bookmark, X, AlertTriangle, MessageSquare,
   Info, ChevronLeft, ChevronRight, Wifi, StopCircle,
   ShieldCheck
@@ -26,6 +26,30 @@ const TestInterface = () => {
   const [showSectionDropdown, setShowSectionDropdown] = useState(false);
   const [filterType, setFilterType] = useState('All'); // All, Attempted, Revisited, Unattempted
   const [timeRemaining, setTimeRemaining] = useState(0);
+  
+  // New Functional States
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(e => console.warn(e));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   useEffect(() => {
     getTestById(testId)
@@ -247,7 +271,7 @@ const TestInterface = () => {
   }
 
   return (
-    <div className="ti-container">
+    <div className={`ti-container ${highContrast ? 'high-contrast' : ''}`}>
       {/* Global Header */}
       <header className="ti-header">
         <div className="ti-header-left">
@@ -270,8 +294,10 @@ const TestInterface = () => {
           </div>
           <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.max(12, prev - 2))} title="Decrease Font Size" style={{ fontWeight: 'bold', fontSize: '12px' }}>A-</button>
           <button type="button" className="ti-icon-btn" onClick={() => setFontSize(prev => Math.min(24, prev + 2))} title="Increase Font Size" style={{ fontWeight: 'bold', fontSize: '14px' }}>A+</button>
-          <button className="ti-icon-btn"><Maximize size={18} /></button>
-          <button className="ti-icon-btn"><Settings size={18} /></button>
+          <button className="ti-icon-btn" onClick={toggleFullscreen} title="Toggle Fullscreen">
+            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+          <button className="ti-icon-btn" onClick={() => setShowSettingsModal(true)} title="Settings"><Settings size={18} /></button>
           <button className="ti-btn-finish" onClick={() => setShowFinishPanel(true)}>Finish Test</button>
         </div>
       </header>
@@ -315,7 +341,7 @@ const TestInterface = () => {
             </div>
           )}
 
-          <button type="button" className="ti-icon-btn" style={{ color: '#1e56a0', border: '1px solid #dcdfe4', padding: '2px 6px', borderRadius: '4px' }}>
+          <button type="button" className="ti-icon-btn" style={{ color: '#1e56a0', border: '1px solid #dcdfe4', padding: '2px 6px', borderRadius: '4px' }} onClick={() => setShowInfoModal(true)} title="Test Information">
             <Info size={14} />
           </button>
         </div>
@@ -358,9 +384,6 @@ const TestInterface = () => {
           <div className="ti-filter-tools">
             <button type="button" className="ti-icon-btn" onClick={() => setShowFilterDropdown(!showFilterDropdown)}>
               <Grid size={16} />
-            </button>
-            <button type="button" className="ti-icon-btn">
-              <Calculator size={16} />
             </button>
           </div>
           <div className="ti-attempt-count">Attempted: {attemptedCount}/{totalQ}</div>
@@ -578,6 +601,71 @@ const TestInterface = () => {
               >
                 Submit Exam
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="ti-finish-overlay" style={{ zIndex: 1000 }}>
+          <div className="ti-finish-panel">
+            <div className="ti-finish-header">
+              <div className="flex-center">
+                <Settings size={18} className="mr-2" style={{ color: '#1e56a0' }} />
+                <span>Test Settings</span>
+              </div>
+              <X size={20} className="cursor-pointer" onClick={() => setShowSettingsModal(false)} />
+            </div>
+            <div className="ti-finish-body" style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <strong style={{ display: 'block', marginBottom: '10px' }}>Visual Preferences</strong>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={highContrast} 
+                    onChange={(e) => setHighContrast(e.target.checked)} 
+                    style={{ marginRight: '10px' }}
+                  />
+                  Enable High Contrast Mode
+                </label>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <strong style={{ display: 'block', marginBottom: '10px' }}>Font Size ({fontSize}px)</strong>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn-secondary" onClick={() => setFontSize(prev => Math.max(12, prev - 2))}>A-</button>
+                  <button className="btn-secondary" onClick={() => setFontSize(prev => Math.min(24, prev + 2))}>A+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="ti-finish-overlay" style={{ zIndex: 1000 }}>
+          <div className="ti-finish-panel">
+            <div className="ti-finish-header">
+              <div className="flex-center">
+                <Info size={18} className="mr-2" style={{ color: '#1e56a0' }} />
+                <span>Test Information</span>
+              </div>
+              <X size={20} className="cursor-pointer" onClick={() => setShowInfoModal(false)} />
+            </div>
+            <div className="ti-finish-body" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0 }}>{testDetails.name}</h3>
+              <ul style={{ paddingLeft: '20px', lineHeight: '1.6', color: '#475569' }}>
+                <li><strong>Total Questions:</strong> {totalQ}</li>
+                <li><strong>Duration:</strong> {testDetails.duration / 60} Minutes</li>
+                <li><strong>Passing Score:</strong> {testDetails.passPercentage || 40}%</li>
+              </ul>
+              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8fafc', borderLeft: '4px solid #1e56a0' }}>
+                <strong style={{ color: '#1e293b' }}>Important Instructions:</strong>
+                <p style={{ fontSize: '13px', margin: '10px 0 0 0', color: '#64748b' }}>
+                  Do not refresh the page or attempt to leave the full-screen mode. Doing so may result in your test being terminated automatically.
+                </p>
+              </div>
             </div>
           </div>
         </div>
