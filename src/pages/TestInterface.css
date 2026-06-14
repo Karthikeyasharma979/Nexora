@@ -406,6 +406,9 @@ button:focus,
   flex-wrap: wrap;
   gap: 5px;
   margin-bottom: 15px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 .ti-filter-legend {
   display: flex;
