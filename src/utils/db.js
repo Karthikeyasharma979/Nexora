@@ -100,6 +100,19 @@ export const deleteReport = async (reportId) => {
   }
 };
 
+export const clearAllReports = async () => {
+  try {
+    const reports = await getAllReports();
+    for (const report of reports) {
+      await deleteReport(report._id || report.id);
+    }
+    return true;
+  } catch (error) {
+    console.error("Error clearing all reports:", error);
+    return false;
+  }
+};
+
 export const saveDemoRequest = async (requestData) => {
   try {
     const response = await fetch(`${API_URL}/demo-requests`, {

@@ -130,7 +130,25 @@ const testSchema = new mongoose.Schema({
   moduleType: { type: String, default: 'quiz' },
   targetUrl: { type: String, default: '' },
   requireSEB: { type: Boolean, default: true },
-  questions: [questionSchema]
+  timeMode: { type: String, default: 'overall' },
+  sectionDurations: { type: Object, default: {} },
+  browsingToleranceMode: { type: String, default: 'custom' },
+  browsingToleranceCount: { type: Number, default: 3 },
+  shuffleQuestions: { type: Boolean, default: false },
+  shuffleOptions: { type: Boolean, default: false },
+  questions: [questionSchema],
+  language: { type: String, default: 'English' },
+  useCase: { type: String, default: '' },
+  testInstructions: { type: String, default: '' },
+  pageRedirect: { type: String, default: '' },
+  compensatoryTime: { type: Boolean, default: false },
+  fixedSectionOrder: { type: Boolean, default: true },
+  uploadAnswerImages: { type: Boolean, default: false },
+  showMarksInTest: { type: Boolean, default: true },
+  watermark: { type: Boolean, default: false },
+  allowCopyPaste: { type: Boolean, default: false },
+  disconnectionDuration: { type: Number, default: 5 },
+  registrationFields: { type: Array, default: [] }
 }, { timestamps: true });
 
 const Test = mongoose.model('Test', testSchema);
@@ -237,7 +255,7 @@ app.get('/api/tests/:id', async (req, res) => {
 // 3. Save a new test
 app.post('/api/tests', authenticateAdmin, async (req, res) => {
   try {
-    const { id, name, duration, requireCamera, questions, startTime, endTime, moduleType, targetUrl, requireSEB } = req.body;
+    const { id, name, duration, requireCamera, questions, ...rest } = req.body;
     if (!id || !name || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -247,12 +265,8 @@ app.post('/api/tests', authenticateAdmin, async (req, res) => {
       name,
       duration,
       requireCamera,
-      startTime,
-      endTime,
-      moduleType: moduleType || 'quiz',
-      targetUrl: targetUrl || '',
-      requireSEB: requireSEB !== undefined ? requireSEB : true,
-      questions: questions || []
+      questions: questions || [],
+      ...rest
     };
 
     if (useInMemoryDb) {
@@ -294,7 +308,7 @@ app.delete('/api/tests/:id', authenticateAdmin, async (req, res) => {
 // 5. Update an existing test by ID
 app.put('/api/tests/:id', authenticateAdmin, async (req, res) => {
   try {
-    const { name, duration, requireCamera, questions, startTime, endTime, moduleType, targetUrl, requireSEB } = req.body;
+    const { name, duration, requireCamera, questions, ...rest } = req.body;
     if (!name || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -303,12 +317,8 @@ app.put('/api/tests/:id', authenticateAdmin, async (req, res) => {
       name, 
       duration, 
       requireCamera, 
-      startTime, 
-      endTime, 
-      moduleType: moduleType || 'quiz', 
-      targetUrl: targetUrl || '', 
-      requireSEB: requireSEB !== undefined ? requireSEB : true,
-      questions: questions || [] 
+      questions: questions || [],
+      ...rest 
     };
 
     if (useInMemoryDb) {

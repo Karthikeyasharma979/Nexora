@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import { getTestById } from '../utils/db';
-import { CheckCircle2, Circle, Laptop, Info, User, Book, MessageSquare, Check, X as XIcon, Camera, AlertTriangle, Send } from 'lucide-react';
+import { CheckCircle2, Circle, Laptop, Info, User, Book, MessageSquare, Check, X as XIcon, AlertTriangle, Send } from 'lucide-react';
 import './Diagnostics.css';
 
 const Diagnostics = () => {
@@ -23,17 +23,31 @@ const Diagnostics = () => {
   const [faceImageSrc, setFaceImageSrc] = useState(null);
   const [idImageSrc, setIdImageSrc] = useState(null);
   const [candidateName, setCandidateName] = useState('');
-  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidateLastName, setCandidateLastName] = useState('');
   const [captureError, setCaptureError] = useState('');
-  
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([{ text: 'Hi! How can we help you today?', sender: 'agent' }]);
   const [chatInput, setChatInput] = useState('');
-
-  const [gatewayTimer, setGatewayTimer] = useState(60);
+  const [candidateEmail, setCandidateEmail] = useState('');
   
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Anti-zoom enforcement
+  useEffect(() => {
+    const preventZoom = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.type === 'wheel') e.preventDefault();
+        if (e.type === 'keydown' && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) e.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', preventZoom, { passive: false });
+    window.addEventListener('keydown', preventZoom, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', preventZoom);
+      window.removeEventListener('keydown', preventZoom);
+    };
+  }, []);
 
   useEffect(() => {
     getTestById(testId)
@@ -50,35 +64,7 @@ const Diagnostics = () => {
       });
   }, [testId, navigate]);
 
-  useEffect(() => {
-    if (!testDetails) return;
-
-    if (testDetails.requireCamera !== false) {
-      // Simulate checking system compatibility first, then ask for permissions
-      const timer = setTimeout(() => {
-        requestPermissions();
-      }, 1000);
-      
-      // Pre-load face-api models for registration verification
-      const loadFaceModels = async () => {
-        try {
-          await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-          window.isFaceApiLoaded = true;
-        } catch (e) {
-          console.warn("Diagnostics: Failed to pre-load face models", e);
-        }
-      };
-      loadFaceModels();
-
-      return () => clearTimeout(timer);
-    } else {
-      // If camera not required, simulate permissions granted so they can proceed immediately
-      setPermissionsStatus('granted');
-      // Do not automatically grant screenStatus so that screen sharing (proctoring) still works
-    }
-  }, [testDetails]);
-
-  const requestPermissions = async () => {
+  const requestPermissions = useCallback(async () => {
     try {
       setPermissionsStatus('requesting');
       setErrorMessage('');
@@ -107,7 +93,37 @@ const Diagnostics = () => {
       
       setPermissionsStatus('denied');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!testDetails) return;
+
+    if (testDetails.requireCamera !== false) {
+      // Simulate checking system compatibility first, then ask for permissions
+      const timer = setTimeout(() => {
+        requestPermissions();
+      }, 1000);
+      
+      // Pre-load face-api models for registration verification
+      const loadFaceModels = async () => {
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+          window.isFaceApiLoaded = true;
+        } catch (e) {
+          console.warn("Diagnostics: Failed to pre-load face models", e);
+        }
+      };
+      loadFaceModels();
+
+      return () => clearTimeout(timer);
+    } else {
+      // If camera not required, simulate permissions granted so they can proceed immediately
+      setTimeout(() => setPermissionsStatus('granted'), 0);
+      // Do not automatically grant screenStatus so that screen sharing (proctoring) still works
+    }
+  }, [testDetails, requestPermissions]);
+
+
 
   const requestScreenShare = async () => {
     try {
@@ -171,13 +187,26 @@ const Diagnostics = () => {
     } else if (currentPhase === 1) {
       setCurrentPhase(2); // Move to Registration phase
     } else if (currentPhase === 2) {
-      const isDetailsValid = candidateName.trim() && candidateEmail.trim().includes('@') && termsAgreed;
+      const isEmailEnabled = testDetails?.registrationFields?.find(f => f.id === 'email')?.isEnabled ?? true;
+      const isFirstNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'firstName')?.isEnabled ?? true;
+      const isLastNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'lastName')?.isEnabled ?? false;
+
+      const isDetailsValid = 
+        (!isFirstNameEnabled || candidateName.trim()) &&
+        (!isLastNameEnabled || candidateLastName.trim()) &&
+        (!isEmailEnabled || candidateEmail.trim().includes('@')) && 
+        termsAgreed;
+
       const isCaptureValid = testDetails.requireCamera === false || (faceImageSrc && idImageSrc);
       
       if (isDetailsValid && isCaptureValid) {
         // Save registration details
-        sessionStorage.setItem('candidateName', candidateName.trim());
-        sessionStorage.setItem('candidateEmail', candidateEmail.trim());
+        const firstName = isFirstNameEnabled ? candidateName.trim() : '';
+        const lastName = isLastNameEnabled ? candidateLastName.trim() : '';
+        const fullName = `${firstName} ${lastName}`.trim() || 'Anonymous';
+        sessionStorage.setItem('candidateName', fullName);
+        
+        sessionStorage.setItem('candidateEmail', isEmailEnabled ? candidateEmail.trim() : '');
         
         setCurrentPhase(3); // Move to "Ready to start" phase
       }
@@ -202,11 +231,18 @@ const Diagnostics = () => {
     }
   };
 
-  const finalizeAndStartTest = async () => {
+  const finalizeAndStartTest = useCallback(async () => {
 
     // Save registration details to sessionStorage for the test environment to read
-    sessionStorage.setItem('candidateName', candidateName.trim());
-    sessionStorage.setItem('candidateEmail', candidateEmail.trim());
+    const isEmailEnabled = testDetails?.registrationFields?.find(f => f.id === 'email')?.isEnabled ?? true;
+    const isFirstNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'firstName')?.isEnabled ?? true;
+    const isLastNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'lastName')?.isEnabled ?? false;
+
+    const firstName = isFirstNameEnabled ? candidateName.trim() : '';
+    const lastName = isLastNameEnabled ? candidateLastName.trim() : '';
+    const fullName = `${firstName} ${lastName}`.trim() || 'Anonymous';
+    sessionStorage.setItem('candidateName', fullName);
+    sessionStorage.setItem('candidateEmail', isEmailEnabled ? candidateEmail.trim() : '');
 
     // Stop any active video stream before navigating
     if (streamRef.current) {
@@ -220,7 +256,7 @@ const Diagnostics = () => {
     } else {
       window.location.href = `nexora://test/${testId}`;
     }
-  };
+  }, [testDetails, candidateName, candidateLastName, candidateEmail, navigate, testId]);
 
   const handleWebFallback = () => {
     if (!window.navigator.userAgent.toLowerCase().includes('electron') && !document.fullscreenElement) {
@@ -234,7 +270,7 @@ const Diagnostics = () => {
       // Automatically attempt to launch the secure browser when entering phase 4
       finalizeAndStartTest();
     }
-  }, [currentPhase]);
+  }, [currentPhase, finalizeAndStartTest]);
 
   useEffect(() => {
     if (currentPhase === 2 && (activeTab === 3 || activeTab === 4)) {
@@ -322,6 +358,14 @@ const Diagnostics = () => {
 
   if (!testDetails) return <div className="diag-loading">Loading Test Details...</div>;
 
+  const sectionsMap = new Map();
+  testDetails.questions.forEach(q => {
+    const sName = q.sectionName || 'Section 1';
+    if (!sectionsMap.has(sName)) sectionsMap.set(sName, 0);
+    sectionsMap.set(sName, sectionsMap.get(sName) + 1);
+  });
+  const sectionsList = Array.from(sectionsMap.entries()).map(([name, count]) => ({ name, count }));
+
   if (currentPhase === 4) {
     return (
       <div className="diag-fullscreen-gateway">
@@ -389,11 +433,23 @@ const Diagnostics = () => {
                 </div>
                 <div className="diag-stat-item">
                   <span className="diag-stat-label">Section count:</span>
-                  <span className="diag-stat-value">1 Sections</span>
+                  <div className="diag-stat-value" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span>{sectionsList.length} Section{sectionsList.length !== 1 ? 's' : ''}</span>
+                    {testDetails.timeMode === 'section' && (
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {sectionsList.map((sec, idx) => (
+                          <div key={idx}>• {sec.name}: {testDetails.sectionDurations?.[sec.name] || 15} mins ({sec.count} qs)</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="diag-stat-item">
                   <span className="diag-stat-label">Test Duration:</span>
-                  <span className="diag-stat-value">{testDetails.duration / 60} Minutes</span>
+                  <span className="diag-stat-value">
+                    {testDetails.duration / 60} Minutes
+                    {testDetails.timeMode === 'section' ? ' (Strictly Section-timed)' : ''}
+                  </span>
                 </div>
               </div>
             </div>
@@ -655,19 +711,44 @@ const Diagnostics = () => {
               </div>
 
               <div className="diag-tab-content">
-                {activeTab === 1 && (
+                {activeTab === 1 && (() => {
+                  const isEmailEnabled = testDetails?.registrationFields?.find(f => f.id === 'email')?.isEnabled ?? true;
+                  const isFirstNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'firstName')?.isEnabled ?? true;
+                  const isLastNameEnabled = testDetails?.registrationFields?.find(f => f.id === 'lastName')?.isEnabled ?? false;
+                  
+                  const isTab1Valid = 
+                    (!isFirstNameEnabled || candidateName.trim()) &&
+                    (!isLastNameEnabled || candidateLastName.trim()) &&
+                    (!isEmailEnabled || candidateEmail.trim().includes('@'));
+
+                  return (
                   <div className="diag-terms" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0' }}>
                     <p style={{ fontWeight: '500', color: '#1e293b' }}>Please enter your details to register for the assessment:</p>
+                    {isFirstNameEnabled && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Full Name *</label>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>First Name *</label>
                       <input 
                         type="text" 
                         value={candidateName} 
                         onChange={(e) => setCandidateName(e.target.value)} 
-                        placeholder="e.g. John Doe"
+                        placeholder="e.g. John"
                         style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
+                    )}
+                    {isLastNameEnabled && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Last Name *</label>
+                      <input 
+                        type="text" 
+                        value={candidateLastName} 
+                        onChange={(e) => setCandidateLastName(e.target.value)} 
+                        placeholder="e.g. Doe"
+                        style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', fontSize: '14px' }}
+                      />
+                    </div>
+                    )}
+                    {isEmailEnabled && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Email Address *</label>
                       <input 
@@ -678,16 +759,18 @@ const Diagnostics = () => {
                         style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '6px', width: '100%', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
+                    )}
                     <button 
-                      className={`diag-btn-primary ${candidateName.trim() && candidateEmail.trim().includes('@') ? 'enabled' : 'disabled'}`}
-                      onClick={() => candidateName.trim() && candidateEmail.trim().includes('@') && setActiveTab(2)}
-                      disabled={!candidateName.trim() || !candidateEmail.trim().includes('@')}
+                      className={`diag-btn-primary ${isTab1Valid ? 'enabled' : 'disabled'}`}
+                      onClick={() => isTab1Valid && setActiveTab(2)}
+                      disabled={!isTab1Valid}
                       style={{ marginTop: '10px' }}
                     >
                       Next
                     </button>
                   </div>
-                )}
+                  );
+                })()}
 
                 {activeTab === 2 && (
                   <div className="diag-terms">
@@ -781,14 +864,40 @@ const Diagnostics = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', color: '#334155' }}>
-                        <input type="radio" checked readOnly style={{ accentColor: '#1e40af', width: '16px', height: '16px', cursor: 'pointer' }} />
-                        Section #1
-                      </td>
-                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{testDetails.questions.length} Questions</td>
-                      <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{testDetails.duration / 60} Minutes</td>
-                    </tr>
+                    {sectionsList.map((sec, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <input type="radio" checked={idx === 0} readOnly style={{ accentColor: '#1e40af', width: '16px', height: '16px', cursor: 'pointer' }} />
+                            {sec.name}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{sec.count} Questions</td>
+                        {testDetails.timeMode === 'section' ? (
+                          <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '500' }}>
+                            {testDetails.sectionDurations?.[sec.name] || 15} Minutes
+                          </td>
+                        ) : (
+                          idx === 0 && (
+                            <td 
+                              rowSpan={sectionsList.length} 
+                              style={{ 
+                                padding: '12px 16px', 
+                                borderBottom: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                verticalAlign: 'middle', 
+                                borderLeft: '1px dashed #cbd5e1', 
+                                textAlign: 'center',
+                                backgroundColor: '#f8fafc'
+                              }}
+                            >
+                              <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px' }}>{testDetails.duration / 60} Mins</div>
+                              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overall Time</div>
+                            </td>
+                          )
+                        )}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

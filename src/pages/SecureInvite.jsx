@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, ExternalLink, ShieldCheck, Download } from 'lucide-react';
-import { getTestById, API_URL } from '../utils/db';
+import { API_URL } from '../utils/db';
 
 const SecureInvite = () => {
   const { token } = useParams();

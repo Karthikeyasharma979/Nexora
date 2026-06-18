@@ -6,7 +6,7 @@ import { playViolationWarning } from '../utils/audioUtils';
 import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
-const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true }) => {
+const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3 }) => {
   const isElectron = window.secure?.isNexoraKiosk === true;
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
@@ -39,6 +39,11 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
 
 
   const addViolation = (type, message, alertText = null) => {
+    // Before creating new violation, handle "Not Applicable" for browsing tolerance
+    if ((type === 'TAB_SWITCH' || type === 'WINDOW_BLUR') && browsingToleranceMode === 'not_applicable') {
+      return; // Ignore this violation completely
+    }
+
     const newViolation = { type, message, timestamp: new Date() };
     const latestViolations = [...violationsRef.current, newViolation];
     violationsRef.current = latestViolations;
@@ -47,10 +52,29 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
     // Synchronously save to session storage so the final strike isn't lost if we navigate immediately
     sessionStorage.setItem('violations', JSON.stringify(latestViolations));
 
+    // Calculate how many browsing violations we have
+    const navViolations = latestViolations.filter(v => v.type === 'TAB_SWITCH' || v.type === 'WINDOW_BLUR').length;
+
+    let terminateReason = null;
+
     if (type === 'ELECTRONIC_DEVICE') {
-      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: 'Severe violation: Mobile phone or electronic device detected.', violations: latestViolations } }));
-    } else if (latestViolations.length >= MAX_VIOLATIONS) {
-      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: `Excessive violations threshold reached (${MAX_VIOLATIONS} strikes).`, violations: latestViolations } }));
+      terminateReason = 'Severe violation: Mobile phone or electronic device detected.';
+    } else if (type === 'SCREEN_SHARE_STOPPED') {
+      terminateReason = 'Severe violation: Screen sharing was stopped during the test.';
+    } else if (type === 'TAB_SWITCH' || type === 'WINDOW_BLUR') {
+      if (browsingToleranceMode === 'no_warning') {
+        terminateReason = 'Zero tolerance policy: You navigated away from the test window.';
+      } else if (browsingToleranceMode === 'custom' && navViolations > browsingToleranceCount) {
+        terminateReason = `Browsing tolerance limit exceeded (${navViolations} strikes).`;
+      }
+    }
+
+    if (!terminateReason && latestViolations.length >= MAX_VIOLATIONS) {
+      terminateReason = `Excessive violations threshold reached (${MAX_VIOLATIONS} strikes).`;
+    }
+
+    if (terminateReason) {
+      window.dispatchEvent(new CustomEvent('test-terminated', { detail: { reason: terminateReason, violations: latestViolations } }));
     }
     console.warn(`PROCTORING VIOLATION: ${message}`);
     if (
@@ -70,7 +94,17 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
     if (alertText) {
       const strikeCount = latestViolations.length;
       setActiveWarning(alertText);
-      setProctoringStatus(`Strike ${strikeCount}/${MAX_VIOLATIONS} - ${type}`);
+      
+      let statusText = `Strike ${strikeCount}/${MAX_VIOLATIONS} - ${type}`;
+      if (type === 'TAB_SWITCH' || type === 'WINDOW_BLUR') {
+        if (browsingToleranceMode === 'custom') {
+          statusText = `Browsing Warning ${navViolations}/${browsingToleranceCount} - ${type}`;
+        } else if (browsingToleranceMode === 'no_warning') {
+          statusText = `Zero Tolerance Violation - ${type}`;
+        }
+      }
+      
+      setProctoringStatus(statusText);
       setViolationLevel(type === 'MULTIPLE_FACES' || type === 'NO_FACE_DETECTED' || type === 'ELECTRONIC_DEVICE' || type === 'TAB_SWITCH' || type === 'WINDOW_BLUR' || type === 'LIVENESS_FAILED' ? 'severe' : 'warning');
       
       // Only auto-dismiss minor violations. Tab switching and blurring should be manually acknowledged.
@@ -118,7 +152,13 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
       if (document.hasFocus && document.hasFocus()) {
         return;
       }
-      addViolation('WINDOW_BLUR', 'Candidate switched to another application or window.', 'WARNING: You must remain focused on the exam window. This violation has been recorded.');
+      
+      // Delay the violation to allow for native UI clicks (like "Hide" screen share)
+      setTimeout(() => {
+        if (!document.hasFocus() && !document.hidden) {
+          addViolation('WINDOW_BLUR', 'Candidate switched to another application or window.', 'WARNING: You must remain focused on the exam window. This violation has been recorded.');
+        }
+      }, 2000);
     };
     window.addEventListener('blur', handleBlur, { capture: true });
 
@@ -154,13 +194,45 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
     };
     document.addEventListener('keydown', handleKeyDown, { capture: true });
 
-    // 4. Anti-Navigation Warning
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = 'Are you sure you want to leave? Your test will be automatically submitted.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handleBeforeUnload, { capture: true });
+
+    // 5. Monitor Screen Share Status
+    const handleScreenShareEnded = () => {
+      addViolation('SCREEN_SHARE_STOPPED', 'Candidate stopped screen sharing during the test.', 'Zero Tolerance Violation: Screen sharing was stopped.');
+    };
+    
+    let screenTracks = [];
+    let screenShareInterval;
+    if (window.globalScreenStream) {
+      screenTracks = window.globalScreenStream.getTracks();
+      let alreadyEnded = false;
+      screenTracks.forEach(track => {
+        if (track.readyState === 'ended') {
+          alreadyEnded = true;
+        } else {
+          track.addEventListener('ended', handleScreenShareEnded);
+          track.onended = handleScreenShareEnded;
+        }
+      });
+      
+      if (alreadyEnded) {
+        handleScreenShareEnded();
+      } else {
+        // Fallback polling in case the event doesn't fire
+        screenShareInterval = setInterval(() => {
+          const allEnded = screenTracks.every(t => t.readyState === 'ended');
+          if (allEnded && screenTracks.length > 0) {
+            clearInterval(screenShareInterval);
+            handleScreenShareEnded();
+          }
+        }, 3000);
+      }
+    }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange, { capture: true });
@@ -170,6 +242,12 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true })
       document.removeEventListener('paste', handleCopyPaste, { capture: true });
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
       window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
+      
+      if (screenShareInterval) clearInterval(screenShareInterval);
+      
+      screenTracks.forEach(track => {
+        track.removeEventListener('ended', handleScreenShareEnded);
+      });
     };
   }, []);
 

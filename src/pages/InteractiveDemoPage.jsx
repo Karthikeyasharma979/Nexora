@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Video, ScanFace, Lock, Activity, Globe } from 'lucide-react';
 import NavBar from '../components/NavBar';
 import './HomePage.css'; // Inherits shared layout and animation styles

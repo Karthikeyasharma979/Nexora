@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTestById, API_URL } from '../utils/db';
 import { 
@@ -42,17 +42,10 @@ const KioskLogin = () => {
   // Launch state: 'input' | 'launching' | 'blocked'
   const [launchState, setLaunchState] = useState('input');
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isElectron, setIsElectron] = useState(false);
+  const [isElectron] = useState(() => window.secure?.isNexoraKiosk === true);
 
-  useEffect(() => {
-    const isElec = window.secure?.isNexoraKiosk === true;
-    setIsElectron(isElec);
-    runDiagnostics(isElec);
-  }, []);
-
-  const runDiagnostics = async (isElecVal = isElectron) => {
+  const runDiagnostics = useCallback(async (isElecVal = isElectron) => {
     // OS Detection
-    const platform = window.navigator.platform || 'Unknown OS';
     const userAgent = window.navigator.userAgent;
     let osName = 'Windows 10/11';
     if (userAgent.indexOf('Mac') !== -1) osName = 'macOS';
@@ -88,6 +81,7 @@ const KioskLogin = () => {
         }
       } catch (err) {
         setSystemChecks(prev => ({ ...prev, network: { status: 'warning', value: 'Ping ok (Offline Fallback)' } }));
+        console.warn('Network ping error:', err);
       }
     } else {
       setSystemChecks(prev => ({ ...prev, network: { status: 'error', value: 'Offline' } }));
@@ -112,8 +106,13 @@ const KioskLogin = () => {
         webcam: { status: 'error', value: 'Denied / Blocked' },
         mic: { status: 'error', value: 'Denied / Blocked' }
       }));
+      console.warn('Media devices error:', err);
     }
-  };
+  }, [isElectron]);
+
+  useEffect(() => {
+    setTimeout(() => runDiagnostics(isElectron), 0);
+  }, [runDiagnostics, isElectron]);
 
   const handleValidateKey = async (e) => {
     e.preventDefault();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Star, X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import './TestCompleted.css';
@@ -27,6 +27,16 @@ const TestCompleted = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (testDetails && testDetails.pageRedirect && status !== 'Terminated') {
+      const url = testDetails.pageRedirect.startsWith('http') ? testDetails.pageRedirect : `https://${testDetails.pageRedirect}`;
+      const timer = setTimeout(() => {
+        window.location.href = url;
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [testDetails, status]);
 
   return (
     <div className="tc-container">
@@ -61,6 +71,20 @@ const TestCompleted = () => {
               >
                 {testDetails ? 'View Report' : 'Report Unavailable'}
               </button>
+              {testDetails && testDetails.pageRedirect && (
+                <button
+                  className="tc-view-report-btn"
+                  style={{ marginLeft: '10px', backgroundColor: '#f1f5f9', color: '#0052cc', border: '1px solid #0052cc' }}
+                  onClick={() => window.location.href = testDetails.pageRedirect.startsWith('http') ? testDetails.pageRedirect : `https://${testDetails.pageRedirect}`}
+                >
+                  Continue to Next Steps
+                </button>
+              )}
+              {testDetails && testDetails.pageRedirect && (
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px' }}>
+                  Redirecting to next steps in 10 seconds...
+                </p>
+              )}
             </div>
           </>
         )}

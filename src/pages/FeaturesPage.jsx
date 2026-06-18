@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ShieldCheck, BrainCircuit, BarChart3 } from 'lucide-react';
 import NavBar from '../components/NavBar';
 import './HomePage.css';

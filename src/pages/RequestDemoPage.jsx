@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Send, CheckCircle2 } from 'lucide-react';
 import { saveDemoRequest } from '../utils/db';
 import NavBar from '../components/NavBar';

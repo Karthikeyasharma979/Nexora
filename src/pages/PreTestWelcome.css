@@ -97,8 +97,8 @@
   background-color: white;
   color: #333;
   width: 100%;
-  max-width: 650px;
-  height: 540px;
+  max-width: 420px;
+  height: 380px;
   position: relative;
   display: flex;
   flex-direction: column;

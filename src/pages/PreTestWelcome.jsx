@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Pause, Play, Wifi, Monitor, Lock, Camera } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { getTestById } from '../utils/db';
 import './PreTestWelcome.css';
 
@@ -38,6 +38,22 @@ const PreTestWelcome = () => {
   });
   const [timeError, setTimeError] = useState(null);
 
+  // Anti-zoom enforcement
+  useEffect(() => {
+    const preventZoom = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.type === 'wheel') e.preventDefault();
+        if (e.type === 'keydown' && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) e.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', preventZoom, { passive: false });
+    window.addEventListener('keydown', preventZoom, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', preventZoom);
+      window.removeEventListener('keydown', preventZoom);
+    };
+  }, []);
+
   useEffect(() => {
     getTestById(testId)
       .then(test => {
@@ -70,12 +86,6 @@ const PreTestWelcome = () => {
   }, [isCarouselPlaying]);
 
   const proceedToTest = () => {
-    // Request full screen mode
-    const docElm = document.documentElement;
-    if (docElm.requestFullscreen) {
-      docElm.requestFullscreen().catch(err => console.error("Error attempting to enable fullscreen:", err));
-    }
-    
     // Navigate to the intermediate diagnostics page to request permissions
     navigate(`/diagnostics/${testId}`);
   };
@@ -114,7 +124,10 @@ const PreTestWelcome = () => {
             </div>
             <div className="pt-stat-item">
               <span className="pt-stat-label">Test duration:</span>
-              <span className="pt-stat-value">{testDetails.duration / 60} Minutes</span>
+              <span className="pt-stat-value">
+                {testDetails.duration / 60} Minutes
+                {testDetails.timeMode === 'section' ? ' (Strictly Section-timed)' : ''}
+              </span>
             </div>
           </div>
 
@@ -129,8 +142,16 @@ const PreTestWelcome = () => {
           )}
         </div>
 
-        {/* Right Side: Carousel Card */}
+        {/* Right Side: Carousel Card or Custom Instructions */}
         <div className="pt-right-col">
+          {testDetails.testInstructions ? (
+            <div className="pt-carousel-card" style={{ padding: '30px', alignItems: 'flex-start', overflowY: 'auto', display: 'block' }}>
+              <h3 className="pt-carousel-title" style={{ marginBottom: '20px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>Test Instructions</h3>
+              <div style={{ whiteSpace: 'pre-wrap', color: '#475569', fontSize: '15px', lineHeight: '1.6', textAlign: 'left' }}>
+                {testDetails.testInstructions}
+              </div>
+            </div>
+          ) : (
           <div className="pt-carousel-card">
             <button 
               className="pt-carousel-nav left"
@@ -142,7 +163,7 @@ const PreTestWelcome = () => {
             <div className="pt-carousel-content">
               <div className="pt-carousel-icon">
                 {CAROUSEL_SLIDES[currentSlide].image ? (
-                  <img src={CAROUSEL_SLIDES[currentSlide].image} alt={CAROUSEL_SLIDES[currentSlide].title} style={{ height: '240px', objectFit: 'contain' }} />
+                  <img src={CAROUSEL_SLIDES[currentSlide].image} alt={CAROUSEL_SLIDES[currentSlide].title} style={{ height: '100px', objectFit: 'contain' }} />
                 ) : (
                   CAROUSEL_SLIDES[currentSlide].icon
                 )}
@@ -183,6 +204,7 @@ const PreTestWelcome = () => {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import ProctoringEngine from '../components/ProctoringEngine';
 import { getTestById } from '../utils/db';
@@ -7,6 +7,8 @@ const TestLayout = () => {
   const { testId } = useParams();
   const [requireCamera, setRequireCamera] = useState(true); // default true for safety
   const [requireSEB, setRequireSEB] = useState(true);
+  const [browsingToleranceMode, setBrowsingToleranceMode] = useState('custom');
+  const [browsingToleranceCount, setBrowsingToleranceCount] = useState(3);
   const [testLoaded, setTestLoaded] = useState(false);
 
   useEffect(() => {
@@ -16,6 +18,8 @@ const TestLayout = () => {
           if (test) {
             if (test.requireCamera === false) setRequireCamera(false);
             if (test.requireSEB === false) setRequireSEB(false);
+            if (test.browsingToleranceMode) setBrowsingToleranceMode(test.browsingToleranceMode);
+            if (test.browsingToleranceCount !== undefined) setBrowsingToleranceCount(test.browsingToleranceCount);
           }
           setTestLoaded(true);
         })
@@ -24,14 +28,19 @@ const TestLayout = () => {
           setTestLoaded(true);
         });
     } else {
-      setTestLoaded(true);
+      setTimeout(() => setTestLoaded(true), 0);
     }
   }, [testId]);
 
   if (!testLoaded) return <div style={{ padding: '50px', textAlign: 'center' }}>Loading test environment...</div>;
 
   return (
-    <ProctoringEngine requireCamera={requireCamera} requireSEB={requireSEB}>
+    <ProctoringEngine 
+      requireCamera={requireCamera} 
+      requireSEB={requireSEB}
+      browsingToleranceMode={browsingToleranceMode}
+      browsingToleranceCount={browsingToleranceCount}
+    >
       <div className="test-layout-container">
         <Outlet />
       </div>

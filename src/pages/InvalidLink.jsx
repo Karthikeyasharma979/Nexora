@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AlertCircle, ArrowLeft, Home } from 'lucide-react';
 import './InvalidLink.css';
 

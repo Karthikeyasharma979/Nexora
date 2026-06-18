@@ -99,15 +99,17 @@
   align-items: center;
   gap: 70px;
   height: fit-content;
+  width: 100%;
 }
 
 .diag-line {
   position: absolute;
   top: 10px;
   bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 2px;
   background-color: #bcd2e5;
   z-index: 1;
 }
@@ -138,8 +140,9 @@
 .diag-line-progress {
   position: absolute;
   top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   width: 4px;
   background-color: #009ce0;
   z-index: 1;
@@ -159,6 +162,7 @@
 .diag-right-title {
   font-size: 18px;
   color: #495057;
+  margin-top: -50px;
   margin-bottom: 20px;
   font-weight: 500;
 }

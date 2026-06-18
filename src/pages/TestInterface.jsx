@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Cloud, Clock, Maximize, Minimize, Settings, ChevronDown, 
-  Grid, Calculator, Flag, Bookmark, X, AlertTriangle, MessageSquare,
-  Info, ChevronLeft, ChevronRight, Wifi, StopCircle, XCircle,
-  ShieldCheck, ClipboardList, List, Sun, Moon, Lock, Bell, LogOut,
-  Camera, Play, Pause
+  Info, ChevronLeft, Lock, Sun, Moon,
+  ChevronRight, List, X, Flag, Wifi, AlertTriangle, XCircle, ClipboardList
 } from 'lucide-react';
 import { playTimerWarning } from '../utils/audioUtils';
 import { getTestById, saveReport } from '../utils/db';
@@ -53,17 +51,24 @@ const TestInterface = () => {
   const [filterType, setFilterType] = useState('All'); // All, Attempted, Revisited, Unattempted
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [secondsSinceSave, setSecondsSinceSave] = useState(0);
-  const lastSavedTimeRef = useRef(Date.now());
+  const lastSavedTimeRef = useRef(null);
+  const endTimeRef = useRef(null);
+
+  useEffect(() => {
+    if (lastSavedTimeRef.current === null) {
+      lastSavedTimeRef.current = Date.now();
+    }
+  }, []);
 
   useEffect(() => {
     lastSavedTimeRef.current = Date.now();
-    setSecondsSinceSave(0);
   }, [answers, revisited]);
   
   // New Functional States
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSectionConfirm, setShowSectionConfirm] = useState(false);
   const [infoTab, setInfoTab] = useState('Test');
   const [highContrast, setHighContrast] = useState(false);
 
@@ -102,34 +107,54 @@ const TestInterface = () => {
           const randomizedTest = { ...test };
           
           // 1. Shuffle options for each question
-          randomizedTest.questions = randomizedTest.questions.map(q => {
-            const originalOptions = [...q.options];
-            const shuffledOptions = shuffleArray(originalOptions);
-            
-            return {
-              ...q,
-              options: shuffledOptions
-            };
-          });
-
-          // 2. Shuffle questions within their respective sections
-          const sectionsMap = new Map();
-          randomizedTest.questions.forEach(q => {
-            const sName = q.sectionName || 'Section 1';
-            if (!sectionsMap.has(sName)) sectionsMap.set(sName, []);
-            sectionsMap.get(sName).push(q);
-          });
-
-          const finalQuestions = [];
-          for (let qs of sectionsMap.values()) {
-            finalQuestions.push(...shuffleArray(qs));
+          if (test.shuffleOptions) {
+            randomizedTest.questions = randomizedTest.questions.map(q => {
+              const originalOptions = [...q.options];
+              const shuffledOptions = shuffleArray(originalOptions);
+              
+              return {
+                ...q,
+                options: shuffledOptions
+              };
+            });
           }
 
-          randomizedTest.questions = finalQuestions;
+          // 2. Shuffle questions within their respective sections and sections
+          if (test.shuffleQuestions || test.fixedSectionOrder === false) {
+            const sectionsMap = new Map();
+            randomizedTest.questions.forEach(q => {
+              const sName = q.sectionName || 'Section 1';
+              if (!sectionsMap.has(sName)) sectionsMap.set(sName, []);
+              sectionsMap.get(sName).push(q);
+            });
+
+            let sectionKeys = Array.from(sectionsMap.keys());
+            if (test.fixedSectionOrder === false) {
+              sectionKeys = shuffleArray(sectionKeys);
+            }
+
+            const finalQuestions = [];
+            for (let sName of sectionKeys) {
+              let qs = sectionsMap.get(sName);
+              if (test.shuffleQuestions) qs = shuffleArray(qs);
+              finalQuestions.push(...qs);
+            }
+
+            randomizedTest.questions = finalQuestions;
+          }
           // --- End Shuffling ---
 
           setTestDetails(randomizedTest);
-          setTimeRemaining(test.duration || 3600);
+          
+          if (test.timeMode === 'section') {
+            const firstSecName = randomizedTest.questions[0]?.sectionName || 'Section 1';
+            const firstSecDur = (test.sectionDurations && test.sectionDurations[firstSecName]) || 15;
+            setTimeRemaining(firstSecDur * 60);
+            endTimeRef.current = Date.now() + firstSecDur * 60 * 1000;
+          } else {
+            setTimeRemaining(test.duration || 3600);
+            endTimeRef.current = Date.now() + (test.duration || 3600) * 1000;
+          }
         } else {
           setErrorReason(`Test not found for ID: "${testId}"`);
         }
@@ -141,6 +166,27 @@ const TestInterface = () => {
   }, [testId, navigate]);
 
 
+  // Derive Sections
+  const sections = useMemo(() => {
+    if (!testDetails) return [];
+    const secs = [];
+    testDetails.questions.forEach((q, idx) => {
+      const sName = q.sectionName || 'Section 1';
+      if (secs.length === 0 || secs[secs.length - 1].name !== sName) {
+        secs.push({ name: sName, startIndex: idx, count: 1 });
+      } else {
+        secs[secs.length - 1].count++;
+      }
+    });
+    return secs;
+  }, [testDetails]);
+
+  const currentSectionIndex = useMemo(() => {
+    return sections.findIndex(s => currentQuestionIdx >= s.startIndex && currentQuestionIdx < s.startIndex + s.count);
+  }, [sections, currentQuestionIdx]);
+
+  const currentSectionName = sections[currentSectionIndex]?.name || 'Section 1';
+
   // Format time (HH:MM:SS)
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -149,15 +195,15 @@ const TestInterface = () => {
     return `${h}:${m}:${s}`;
   };
 
-  useEffect(() => {
-    if (testDetails && testDetails.questions[currentQuestionIdx]) {
-      const qId = testDetails.questions[currentQuestionIdx].id;
-      setViewed(prev => {
-        if (prev[qId]) return prev;
-        return { ...prev, [qId]: true };
-      });
+  // Update viewed status during render
+  if (testDetails && testDetails.questions[currentQuestionIdx]) {
+    const qId = testDetails.questions[currentQuestionIdx].id;
+    if (!viewed[qId]) {
+      setViewed(prev => ({ ...prev, [qId]: true }));
     }
+  }
 
+  useEffect(() => {
     // Auto-scroll the active pagination button into view
     setTimeout(() => {
       const activeBtn = document.querySelector('.ti-pagination .ti-page-num.active');
@@ -171,14 +217,20 @@ const TestInterface = () => {
     if (!testDetails) return;
     
     const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        const newTime = prev > 0 ? prev - 1 : 0;
-        if (newTime === 600) { // Exactly 10 minutes left
-          playTimerWarning();
-        }
-        return newTime;
-      });
-      setSecondsSinceSave(Math.floor((Date.now() - lastSavedTimeRef.current) / 1000));
+      if (endTimeRef.current) {
+        const now = Date.now();
+        const secondsLeft = Math.max(0, Math.floor((endTimeRef.current - now) / 1000));
+        
+        setTimeRemaining(prev => {
+          if (prev > 600 && secondsLeft <= 600 && secondsLeft > 0) {
+            playTimerWarning();
+          }
+          return secondsLeft;
+        });
+      }
+      if (lastSavedTimeRef.current !== null) {
+        setSecondsSinceSave(Math.floor((Date.now() - lastSavedTimeRef.current) / 1000));
+      }
     }, 1000);
     return () => clearInterval(timer);
   }, [testDetails]);
@@ -186,7 +238,7 @@ const TestInterface = () => {
   const handleSubmitExam = useCallback(async (status = 'Completed', terminationReason = null) => {
     if (!testDetails) return;
     
-    const candidateName = sessionStorage.getItem('candidateName') || 'Harry';
+    const candidateName = sessionStorage.getItem('candidateName') || 'Candidate';
     const candidateEmail = sessionStorage.getItem('candidateEmail') || '';
     const storedViolations = JSON.parse(sessionStorage.getItem('violations') || '[]');
 
@@ -199,12 +251,20 @@ const TestInterface = () => {
       violations: storedViolations
     });
 
-    let score = 'Evaluating...';
     let percentage = '0.00';
     if (res && res.score) {
-      score = res.score;
-      const [correct, total] = score.split('/').map(Number);
+      const [correct, total] = res.score.split('/').map(Number);
       if (total > 0) percentage = ((correct / total) * 100).toFixed(2);
+    }
+
+    // Stop all media streams (screen sharing and webcam) to turn off sharing/recording indicators
+    if (window.globalScreenStream) {
+      window.globalScreenStream.getTracks().forEach(t => t.stop());
+      window.globalScreenStream = null;
+    }
+    if (window.globalVideoStream) {
+      window.globalVideoStream.getTracks().forEach(t => t.stop());
+      window.globalVideoStream = null;
     }
 
     navigate('/completed', { 
@@ -221,6 +281,60 @@ const TestInterface = () => {
     });
   }, [testDetails, testId, answers, navigate]);
 
+  // Disconnection Duration Enforcer
+  useEffect(() => {
+    if (!testDetails || !testDetails.disconnectionDuration) return;
+    
+    let offlineTimer = null;
+    let offlineTimeAccumulated = 0;
+    const maxOfflineTimeMs = parseInt(testDetails.disconnectionDuration) * 60 * 1000;
+
+    const handleOffline = () => {
+      if (offlineTimer) return;
+      offlineTimer = setInterval(() => {
+        offlineTimeAccumulated += 1000;
+        if (offlineTimeAccumulated >= maxOfflineTimeMs) {
+          clearInterval(offlineTimer);
+          handleSubmitExam('Terminated', 'Offline duration exceeded limit');
+        }
+      }, 1000);
+    };
+
+    const handleOnline = () => {
+      if (offlineTimer) {
+        clearInterval(offlineTimer);
+        offlineTimer = null;
+      }
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    if (!navigator.onLine) handleOffline();
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      if (offlineTimer) clearInterval(offlineTimer);
+    };
+  }, [testDetails, handleSubmitExam]);
+
+  // Copy/Paste Blocker
+  useEffect(() => {
+    if (!testDetails || testDetails.allowCopyPaste) return;
+    const blockAction = (e) => e.preventDefault();
+    document.addEventListener('copy', blockAction);
+    document.addEventListener('cut', blockAction);
+    document.addEventListener('paste', blockAction);
+    document.addEventListener('contextmenu', blockAction);
+    return () => {
+      document.removeEventListener('copy', blockAction);
+      document.removeEventListener('cut', blockAction);
+      document.removeEventListener('paste', blockAction);
+      document.removeEventListener('contextmenu', blockAction);
+    };
+  }, [testDetails]);
+
   useEffect(() => {
     const handleTermination = (e) => {
       const reason = e.detail?.reason || 'Excessive proctoring violations.';
@@ -231,10 +345,24 @@ const TestInterface = () => {
   }, [handleSubmitExam]);
 
   useEffect(() => {
-    if (testDetails && timeRemaining === 0) {
-      handleSubmitExam('Completed', 'Time up');
+    if (testDetails && timeRemaining === 0 && endTimeRef.current) {
+      setTimeout(() => {
+        if (testDetails.timeMode === 'section') {
+          if (currentSectionIndex < sections.length - 1) {
+            const nextSec = sections[currentSectionIndex + 1];
+            const nextSecDur = testDetails.sectionDurations?.[nextSec.name] || 15;
+            setCurrentQuestionIdx(nextSec.startIndex);
+            setTimeRemaining(nextSecDur * 60);
+            endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
+          } else {
+            handleSubmitExam('Completed', 'Time up');
+          }
+        } else {
+          handleSubmitExam('Completed', 'Time up');
+        }
+      }, 0);
     }
-  }, [timeRemaining, testDetails, handleSubmitExam]);
+  }, [timeRemaining, testDetails, currentSectionIndex, sections, handleSubmitExam]);
 
   const handleSelectOption = useCallback((optText) => {
     if (!testDetails) return;
@@ -258,6 +386,22 @@ const TestInterface = () => {
     setRevisited(prev => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }));
   }, [testDetails, currentQuestionIdx]);
 
+  // Anti-zoom enforcement
+  useEffect(() => {
+    const preventZoom = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.type === 'wheel') e.preventDefault();
+        if (e.type === 'keydown' && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) e.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', preventZoom, { passive: false });
+    window.addEventListener('keydown', preventZoom, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', preventZoom);
+      window.removeEventListener('keydown', preventZoom);
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Don't trigger shortcuts if user is typing in an input or textarea
@@ -270,20 +414,35 @@ const TestInterface = () => {
 
       switch (e.key) {
         case 'ArrowRight':
-          setCurrentQuestionIdx(prev => Math.min(totalQ - 1, prev + 1));
+          setCurrentQuestionIdx(prev => {
+            if (testDetails.timeMode === 'section') {
+              const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+              const sec = sections[secIdx];
+              return Math.min(sec.startIndex + sec.count - 1, prev + 1);
+            }
+            return Math.min(totalQ - 1, prev + 1);
+          });
           break;
         case 'ArrowLeft':
-          setCurrentQuestionIdx(prev => Math.max(0, prev - 1));
+          setCurrentQuestionIdx(prev => {
+            if (testDetails.timeMode === 'section') {
+              const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+              const sec = sections[secIdx];
+              return Math.max(sec.startIndex, prev - 1);
+            }
+            return Math.max(0, prev - 1);
+          });
           break;
         case '1':
         case '2':
         case '3':
-        case '4':
+        case '4': {
           const optionIndex = parseInt(e.key) - 1;
           if (currentQ.options && currentQ.options[optionIndex]) {
             handleSelectOption(currentQ.options[optionIndex]);
           }
           break;
+        }
         case 'c':
         case 'C':
           handleClearResponse();
@@ -299,7 +458,7 @@ const TestInterface = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [testDetails, currentQuestionIdx, showSettingsDropdown, showFinishPanel, showInfoModal, handleSelectOption, handleClearResponse, toggleRevisit]);
+  }, [testDetails, currentQuestionIdx, showSettingsDropdown, showFinishPanel, showInfoModal, handleSelectOption, handleClearResponse, toggleRevisit, sections]);
 
   if (errorReason) {
     return (
@@ -319,20 +478,6 @@ const TestInterface = () => {
   const revisitCount = Object.keys(revisited).filter(k => revisited[k]).length;
   const totalQ = testDetails.questions.length;
 
-  // Derive Sections
-  const sections = [];
-  testDetails.questions.forEach((q, idx) => {
-    const sName = q.sectionName || 'Section 1';
-    if (sections.length === 0 || sections[sections.length - 1].name !== sName) {
-      sections.push({ name: sName, startIndex: idx, count: 1 });
-    } else {
-      sections[sections.length - 1].count++;
-    }
-  });
-  
-  const currentSectionIndex = sections.findIndex(s => currentQuestionIdx >= s.startIndex && currentQuestionIdx < s.startIndex + s.count);
-  const currentSectionName = sections[currentSectionIndex]?.name || 'Section 1';
-
   // Filtered question logic for the grid dropdown
   let displayedQuestions = testDetails.questions
     .map((q, i) => ({ q, originalIndex: i }))
@@ -349,8 +494,93 @@ const TestInterface = () => {
     displayedQuestions = displayedQuestions.filter(item => answers[item.q.id] === undefined);
   }
 
+  const isFirstQuestionOfTest = currentQuestionIdx === 0;
+  const isFirstQuestionOfSection = currentQuestionIdx === sections[currentSectionIndex].startIndex;
+  
+  const isLastQuestionOfTest = currentQuestionIdx === totalQ - 1;
+  const isLastQuestionOfCurrentSection = currentQuestionIdx === sections[currentSectionIndex].startIndex + sections[currentSectionIndex].count - 1;
+  const hasMoreSections = currentSectionIndex < sections.length - 1;
+
+  const isFirstQuestion = testDetails.timeMode === 'section' ? isFirstQuestionOfSection : isFirstQuestionOfTest;
+
+  const handleNext = () => {
+    if (isLastQuestionOfTest) {
+      setShowFinishPanel(true);
+      return;
+    }
+    
+    if (isLastQuestionOfCurrentSection && hasMoreSections) {
+      if (testDetails.timeMode === 'section') {
+        setShowSectionConfirm(true);
+      } else {
+        setCurrentQuestionIdx(prev => prev + 1);
+      }
+    } else {
+      setCurrentQuestionIdx(prev => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (isFirstQuestion) return;
+    setCurrentQuestionIdx(prev => prev - 1);
+  };
+
+  const confirmNextSection = () => {
+    setShowSectionConfirm(false);
+    const nextSec = sections[currentSectionIndex + 1];
+    const nextSecDur = testDetails.sectionDurations?.[nextSec.name] || 15;
+    setCurrentQuestionIdx(nextSec.startIndex);
+    setTimeRemaining(nextSecDur * 60);
+    endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
+  };
+
   return (
     <div className={`ti-container ${highContrast ? 'high-contrast' : ''} fade-in`}>
+      {/* Watermark Overlay */}
+      {testDetails.watermark && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+        }}>
+          <div style={{
+            transform: 'rotate(-30deg)',
+            fontSize: '6vw',
+            color: 'rgba(0,0,0,0.04)',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            userSelect: 'none'
+          }}>
+            {sessionStorage.getItem('candidateEmail') || 'Nexora'}
+          </div>
+        </div>
+      )}
+      
+      {/* Section Confirm Modal */}
+      {showSectionConfirm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0, color: '#1e293b', marginBottom: '15px' }}>Next Section</h3>
+            <p style={{ color: '#475569', marginBottom: '25px', lineHeight: '1.5' }}>
+              Are you sure you want to move to the next section? You will not be able to return to this section and remaining time will be lost.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+              <button 
+                onClick={() => setShowSectionConfirm(false)}
+                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', color: '#475569', cursor: 'pointer', fontWeight: '500' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmNextSection}
+                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', backgroundColor: '#1e56a0', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global Header */}
       <header className="ti-header">
         <div className="ti-header-left">
@@ -465,6 +695,7 @@ const TestInterface = () => {
                   }
                   const percentage = Math.round((answered / s.count) * 100);
                   const isActive = currentSectionName === s.name;
+                  const isLocked = testDetails.timeMode === 'section' && !isActive;
 
                   return (
                     <button 
@@ -474,13 +705,14 @@ const TestInterface = () => {
                         padding: '16px',
                         display: 'flex',
                         alignItems: 'center',
-                        backgroundColor: isActive ? 'white' : '#cbd5e1',
+                        backgroundColor: isActive ? 'white' : '#f8fafc',
                         border: 'none',
-                        borderBottom: '1px solid white',
-                        cursor: 'pointer',
+                        borderBottom: '1px solid #e2e8f0',
+                        cursor: isLocked ? 'not-allowed' : 'pointer',
                         textAlign: 'left'
                       }}
                       onClick={() => {
+                        if (isLocked) return;
                         setCurrentQuestionIdx(s.startIndex);
                         setShowSectionDropdown(false);
                       }}
@@ -499,14 +731,15 @@ const TestInterface = () => {
                         fontSize: '15px',
                         flexShrink: 0
                       }}>
-                        {isActive ? (idx + 1) : <Lock size={16} color="#1e293b" />}
+                        {isLocked ? <Lock size={16} color="#1e293b" /> : (idx + 1)}
                       </div>
 
                       {/* Right Content Block */}
                       <div style={{ marginLeft: '16px', flex: 1 }}>
                         <div style={{ 
                           fontSize: '15px', 
-                          color: isActive ? '#334155' : 'white', 
+                          color: isActive ? '#1e293b' : '#64748b', 
+                          fontWeight: isActive ? '600' : '500',
                           marginBottom: '6px'
                         }}>
                           {s.name}
@@ -514,21 +747,22 @@ const TestInterface = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ 
                             fontSize: '11px', 
-                            color: isActive ? '#64748b' : 'white'
+                            color: isActive ? '#1e56a0' : '#94a3b8',
+                            fontWeight: '600'
                           }}>
                             {percentage}% done
                           </span>
                           <div style={{ 
                             flex: 1, 
                             height: '4px', 
-                            backgroundColor: isActive ? '#e2e8f0' : '#f8fafc',
+                            backgroundColor: '#e2e8f0',
                             borderRadius: '2px',
                             overflow: 'hidden'
                           }}>
                             <div style={{ 
                               width: `${percentage}%`, 
                               height: '100%', 
-                              backgroundColor: isActive ? '#1e293b' : '#cbd5e1',
+                              backgroundColor: isActive ? '#1e56a0' : '#94a3b8',
                               transition: 'width 0.3s ease'
                             }} />
                           </div>
@@ -545,7 +779,7 @@ const TestInterface = () => {
         <div className="ti-nav-center-wrapper" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', overflow: 'visible', padding: '0 20px', minWidth: 0 }}>
           
           <div className="ti-nav-center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', minWidth: 0 }}>
-            <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
+            <button type="button" className="ti-page-btn flex-center" disabled={isFirstQuestion} onClick={handlePrev}>
               <ChevronLeft size={16} />
             </button>
 
@@ -571,7 +805,7 @@ const TestInterface = () => {
               })}
             </div>
 
-            <button type="button" className="ti-page-btn flex-center" disabled={currentQuestionIdx === totalQ - 1} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>
+            <button type="button" className="ti-page-btn flex-center" disabled={isLastQuestionOfTest} onClick={handleNext}>
               <ChevronRight size={16} />
             </button>
 
@@ -667,13 +901,15 @@ const TestInterface = () => {
           
         <div className="ti-nav-right-wrapper" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{ display: 'flex', border: '1px solid #1e3a8a', borderRadius: '4px', overflow: 'hidden' }}>
-            <button type="button" className="ti-btn-outline" style={{ border: 'none', borderRight: '1px solid #1e3a8a', color: '#1e3a8a', background: 'white', padding: '6px 16px', borderRadius: 0, fontSize: '13px' }} disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}>
+            <button type="button" className="ti-btn-outline" style={{ border: 'none', borderRight: '1px solid #1e3a8a', color: '#1e3a8a', background: 'white', padding: '6px 16px', borderRadius: 0, fontSize: '13px' }} disabled={isFirstQuestion} onClick={handlePrev}>
               Previous
             </button>
-            {currentQuestionIdx === totalQ - 1 ? (
-              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setShowFinishPanel(true)}>Submit</button>
+            {isLastQuestionOfTest ? (
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setShowFinishPanel(true)}>Submit Test</button>
+            ) : isLastQuestionOfCurrentSection && hasMoreSections ? (
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={handleNext}>{testDetails.timeMode === 'section' ? 'Next Section' : 'Next'}</button>
             ) : (
-              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}>Next</button>
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={handleNext}>Next</button>
             )}
           </div>
         </div>
@@ -711,8 +947,8 @@ const TestInterface = () => {
         <button 
           type="button"
           className="ti-float-arrow left" 
-          disabled={currentQuestionIdx === 0}
-          onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev-1))}
+          disabled={isFirstQuestion}
+          onClick={handlePrev}
         >
           <ChevronLeft size={20} />
         </button>
@@ -720,8 +956,8 @@ const TestInterface = () => {
         <button 
           type="button"
           className="ti-float-arrow right" 
-          disabled={currentQuestionIdx === totalQ - 1}
-          onClick={() => setCurrentQuestionIdx(prev => Math.min(totalQ-1, prev+1))}
+          disabled={isLastQuestionOfTest}
+          onClick={handleNext}
         >
           <ChevronRight size={20} />
         </button>
@@ -737,6 +973,11 @@ const TestInterface = () => {
                 onClick={toggleRevisit}
               />
             </div>
+            {testDetails.showMarksInTest !== false && (
+              <div style={{ background: '#f1f5f9', color: '#475569', fontSize: '12px', padding: '4px 10px', borderRadius: '4px', fontWeight: '500' }}>
+                Marks: 1
+              </div>
+            )}
           </div>
           <div className="ti-question-text" style={{ fontSize: `${fontSize}px`, marginTop: '15px' }}>
             {currentQ.text}
