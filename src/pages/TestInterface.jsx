@@ -50,9 +50,11 @@ const TestInterface = () => {
   const [showSectionDropdown, setShowSectionDropdown] = useState(false);
   const [filterType, setFilterType] = useState('All'); // All, Attempted, Revisited, Unattempted
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timeAlert, setTimeAlert] = useState(null);
   const [secondsSinceSave, setSecondsSinceSave] = useState(0);
   const lastSavedTimeRef = useRef(null);
   const endTimeRef = useRef(null);
+  const totalDurationRef = useRef(0);
 
   useEffect(() => {
     if (lastSavedTimeRef.current === null) {
@@ -150,9 +152,11 @@ const TestInterface = () => {
             const firstSecName = randomizedTest.questions[0]?.sectionName || 'Section 1';
             const firstSecDur = (test.sectionDurations && test.sectionDurations[firstSecName]) || 15;
             setTimeRemaining(firstSecDur * 60);
+            totalDurationRef.current = firstSecDur * 60;
             endTimeRef.current = Date.now() + firstSecDur * 60 * 1000;
           } else {
             setTimeRemaining(test.duration || 3600);
+            totalDurationRef.current = test.duration || 3600;
             endTimeRef.current = Date.now() + (test.duration || 3600) * 1000;
           }
         } else {
@@ -225,6 +229,21 @@ const TestInterface = () => {
           if (prev > 600 && secondsLeft <= 600 && secondsLeft > 0) {
             playTimerWarning();
           }
+          
+          const halfTime = Math.floor(totalDurationRef.current / 2);
+          if (prev > halfTime && secondsLeft <= halfTime && secondsLeft > 0) {
+            setTimeAlert('Half time completed!');
+            setTimeout(() => setTimeAlert(null), 5000);
+          }
+          if (prev > 60 && secondsLeft <= 60 && secondsLeft > 0) {
+            setTimeAlert('Only 1 minute left!');
+            setTimeout(() => setTimeAlert(null), 5000);
+          }
+          if (prev > 10 && secondsLeft <= 10 && secondsLeft > 0) {
+            setTimeAlert('Only 10 seconds left!');
+            setTimeout(() => setTimeAlert(null), 5000);
+          }
+          
           return secondsLeft;
         });
       }
@@ -353,6 +372,7 @@ const TestInterface = () => {
             const nextSecDur = testDetails.sectionDurations?.[nextSec.name] || 15;
             setCurrentQuestionIdx(nextSec.startIndex);
             setTimeRemaining(nextSecDur * 60);
+            totalDurationRef.current = nextSecDur * 60;
             endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
           } else {
             handleSubmitExam('Completed', 'Time up');
@@ -367,7 +387,23 @@ const TestInterface = () => {
   const handleSelectOption = useCallback((optText) => {
     if (!testDetails) return;
     const currentQ = testDetails.questions[currentQuestionIdx];
-    setAnswers(prev => ({ ...prev, [currentQ.id]: optText }));
+    setAnswers(prev => {
+      if (currentQ.type === 'multiple') {
+        const currentAns = Array.isArray(prev[currentQ.id]) ? prev[currentQ.id] : [];
+        if (currentAns.includes(optText)) {
+          const newAns = currentAns.filter(a => a !== optText);
+          if (newAns.length === 0) {
+            const nextPrev = { ...prev };
+            delete nextPrev[currentQ.id];
+            return nextPrev;
+          }
+          return { ...prev, [currentQ.id]: newAns };
+        } else {
+          return { ...prev, [currentQ.id]: [...currentAns, optText] };
+        }
+      }
+      return { ...prev, [currentQ.id]: optText };
+    });
   }, [testDetails, currentQuestionIdx]);
 
   const handleClearResponse = useCallback(() => {
@@ -415,22 +451,16 @@ const TestInterface = () => {
       switch (e.key) {
         case 'ArrowRight':
           setCurrentQuestionIdx(prev => {
-            if (testDetails.timeMode === 'section') {
-              const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
-              const sec = sections[secIdx];
-              return Math.min(sec.startIndex + sec.count - 1, prev + 1);
-            }
-            return Math.min(totalQ - 1, prev + 1);
+            const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+            const sec = sections[secIdx];
+            return Math.min(sec.startIndex + sec.count - 1, prev + 1);
           });
           break;
         case 'ArrowLeft':
           setCurrentQuestionIdx(prev => {
-            if (testDetails.timeMode === 'section') {
-              const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
-              const sec = sections[secIdx];
-              return Math.max(sec.startIndex, prev - 1);
-            }
-            return Math.max(0, prev - 1);
+            const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+            const sec = sections[secIdx];
+            return Math.max(sec.startIndex, prev - 1);
           });
           break;
         case '1':
@@ -501,7 +531,7 @@ const TestInterface = () => {
   const isLastQuestionOfCurrentSection = currentQuestionIdx === sections[currentSectionIndex].startIndex + sections[currentSectionIndex].count - 1;
   const hasMoreSections = currentSectionIndex < sections.length - 1;
 
-  const isFirstQuestion = testDetails.timeMode === 'section' ? isFirstQuestionOfSection : isFirstQuestionOfTest;
+  const isFirstQuestion = isFirstQuestionOfSection;
 
   const handleNext = () => {
     if (isLastQuestionOfTest) {
@@ -531,30 +561,24 @@ const TestInterface = () => {
     const nextSecDur = testDetails.sectionDurations?.[nextSec.name] || 15;
     setCurrentQuestionIdx(nextSec.startIndex);
     setTimeRemaining(nextSecDur * 60);
+    totalDurationRef.current = nextSecDur * 60;
     endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
   };
 
   return (
     <div className={`ti-container ${highContrast ? 'high-contrast' : ''} fade-in`}>
-      {/* Watermark Overlay */}
-      {testDetails.watermark && (
+      {timeAlert && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, pointerEvents: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+          position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#f59e0b', color: 'white', padding: '12px 24px',
+          borderRadius: '8px', zIndex: 9999, fontWeight: 'bold', fontSize: '15px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)', pointerEvents: 'none',
+          animation: 'slide-in-right 0.3s ease-out'
         }}>
-          <div style={{
-            transform: 'rotate(-30deg)',
-            fontSize: '6vw',
-            color: 'rgba(0,0,0,0.04)',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            userSelect: 'none'
-          }}>
-            {sessionStorage.getItem('candidateEmail') || 'Nexora'}
-          </div>
+          ⏱️ {timeAlert}
         </div>
       )}
-      
+
       {/* Section Confirm Modal */}
       {showSectionConfirm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -695,7 +719,7 @@ const TestInterface = () => {
                   }
                   const percentage = Math.round((answered / s.count) * 100);
                   const isActive = currentSectionName === s.name;
-                  const isLocked = testDetails.timeMode === 'section' && !isActive;
+                  const isLocked = (testDetails.timeMode === 'section' && !isActive) || idx < currentSectionIndex;
 
                   return (
                     <button 
@@ -942,7 +966,6 @@ const TestInterface = () => {
 
       {/* Main Content Area */}
       <main key={currentQuestionIdx} className="ti-main fade-in">
-        <div className="ti-watermark-overlay"></div>
         {/* Floating Side Arrows */}
         <button 
           type="button"
@@ -990,20 +1013,26 @@ const TestInterface = () => {
             <button type="button" className="ti-clear-btn" onClick={handleClearResponse}>Clear Response</button>
           </div>
           <div className="ti-options-list">
-            {currentQ.options.map((opt, idx) => (
-              <label 
-                key={idx} 
-                className={`ti-option-label ${answers[currentQ.id] === opt ? 'selected' : ''}`}
-              >
-                <input 
-                  type="radio" 
-                  name={`q-${currentQ.id}`} 
-                  checked={answers[currentQ.id] === opt}
-                  onChange={() => handleSelectOption(opt)}
-                />
-                <span className="ti-option-text" style={{ fontSize: `${fontSize - 1}px` }}>{opt}</span>
-              </label>
-            ))}
+            {currentQ.options.map((opt, idx) => {
+              const isSelected = currentQ.type === 'multiple' 
+                ? Array.isArray(answers[currentQ.id]) && answers[currentQ.id].includes(opt)
+                : answers[currentQ.id] === opt;
+              
+              return (
+                <label 
+                  key={idx} 
+                  className={`ti-option-label ${isSelected ? 'selected' : ''}`}
+                >
+                  <input 
+                    type={currentQ.type === 'multiple' ? "checkbox" : "radio"}
+                    name={`q-${currentQ.id}`} 
+                    checked={isSelected}
+                    onChange={() => handleSelectOption(opt)}
+                  />
+                  <span className="ti-option-text" style={{ fontSize: `${fontSize - 1}px` }}>{opt}</span>
+                </label>
+              );
+            })}
           </div>
         </div>
       </main>

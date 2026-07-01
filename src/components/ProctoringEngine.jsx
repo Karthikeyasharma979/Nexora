@@ -6,7 +6,7 @@ import { playViolationWarning } from '../utils/audioUtils';
 import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
-const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3 }) => {
+const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3, watermark = true }) => {
   const isElectron = window.secure?.isNexoraKiosk === true;
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
@@ -540,10 +540,12 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, b
 
   return (
     <>
-      <div 
-        className="forensic-watermark" 
-        style={{ backgroundImage: `url("${svgWatermark}")` }}
-      />
+      {watermark && (
+        <div 
+          className="forensic-watermark" 
+          style={{ backgroundImage: `url("${svgWatermark}")` }}
+        />
+      )}
 
       {/* Pre-Crime Warning Overlay Removed */}      {/* Massive Full-Screen Violation Lock removed as requested */}
 

@@ -9,6 +9,7 @@ const TestLayout = () => {
   const [requireSEB, setRequireSEB] = useState(true);
   const [browsingToleranceMode, setBrowsingToleranceMode] = useState('custom');
   const [browsingToleranceCount, setBrowsingToleranceCount] = useState(3);
+  const [watermark, setWatermark] = useState(true);
   const [testLoaded, setTestLoaded] = useState(false);
 
   useEffect(() => {
@@ -20,6 +21,7 @@ const TestLayout = () => {
             if (test.requireSEB === false) setRequireSEB(false);
             if (test.browsingToleranceMode) setBrowsingToleranceMode(test.browsingToleranceMode);
             if (test.browsingToleranceCount !== undefined) setBrowsingToleranceCount(test.browsingToleranceCount);
+            if (test.watermark !== undefined) setWatermark(test.watermark);
           }
           setTestLoaded(true);
         })
@@ -40,6 +42,7 @@ const TestLayout = () => {
       requireSEB={requireSEB}
       browsingToleranceMode={browsingToleranceMode}
       browsingToleranceCount={browsingToleranceCount}
+      watermark={watermark}
     >
       <div className="test-layout-container">
         <Outlet />

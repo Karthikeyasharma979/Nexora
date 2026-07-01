@@ -384,12 +384,23 @@ app.post('/api/reports', async (req, res) => {
     if (test && test.questions) {
       totalQuestions = test.questions.length;
       test.questions.forEach(q => {
-        const correctText = q.options[q.correctOption];
-        correctAnswers[q.id] = correctText;
-        if (answers[q.id] === correctText) {
-          correctCount++;
+        if (q.type === 'multiple') {
+          const correctTexts = (q.correctOptions || []).map(idx => q.options[idx]).sort();
+          correctAnswers[q.id] = correctTexts;
+          const studentAns = Array.isArray(answers[q.id]) ? [...answers[q.id]].sort() : [];
+          if (JSON.stringify(correctTexts) === JSON.stringify(studentAns)) {
+            correctCount++;
+          } else {
+            incorrectQuestionsText.push(q.text);
+          }
         } else {
-          incorrectQuestionsText.push(q.text);
+          const correctText = q.options[q.correctOption];
+          correctAnswers[q.id] = correctText;
+          if (answers[q.id] === correctText) {
+            correctCount++;
+          } else {
+            incorrectQuestionsText.push(q.text);
+          }
         }
       });
     }

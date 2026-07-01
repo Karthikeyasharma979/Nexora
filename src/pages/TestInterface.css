@@ -426,14 +426,6 @@ button:focus,
   padding: 0 40px; 
 }
 
-.ti-watermark-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none;
-  z-index: 10;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300'%3E%3Ctext x='50' y='150' transform='rotate(-25 50 150)' fill='rgba(200,200,200,0.15)' font-family='sans-serif' font-size='18' letter-spacing='2'%3Ecandidate \u2022 01X8WQRC \u2022 2026-06-14 \u2022 NEXORA SECURE%3C/text%3E%3C/svg%3E");
-  background-repeat: repeat;
-}
 
 .ti-pane-left {
   flex: 1;

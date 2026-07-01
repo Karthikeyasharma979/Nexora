@@ -552,7 +552,8 @@ app.on('ready', () => {
 // IPC handler for renderer to request screen capture with explicit user consent
 ipcMain.handle('request-screen-capture', async (event) => {
   try {
-    const resp = dialog.showMessageBoxSync({
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    const resp = dialog.showMessageBoxSync(win, {
       type: 'question',
       buttons: ['Allow', 'Deny'],
       defaultId: 1,

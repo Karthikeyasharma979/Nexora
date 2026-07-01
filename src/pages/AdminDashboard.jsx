@@ -106,7 +106,7 @@ const AdminDashboard = () => {
     alert(`Successfully extracted and imported ${newParsed.length} questions!`);
   };
   
-  const [currentQuestion, setCurrentQuestion] = useState({ text: '', options: ['', '', '', ''], correctOption: 0 });
+  const [currentQuestion, setCurrentQuestion] = useState({ text: '', type: 'single', options: ['', '', '', ''], correctOption: 0, correctOptions: [0] });
 
   const fetchDashboardData = () => {
     getAllTests()
@@ -264,7 +264,7 @@ const AdminDashboard = () => {
     } else {
       setQuestions([...questions, { ...currentQuestion, id: questions.length + 1, sectionName: currentSectionName }]);
     }
-    setCurrentQuestion({ text: '', options: ['', '', '', ''], correctOption: 0 });
+    setCurrentQuestion({ text: '', type: 'single', options: ['', '', '', ''], correctOption: 0, correctOptions: [0] });
   };
 
 
@@ -283,7 +283,7 @@ const AdminDashboard = () => {
 
   const handleCancelEditQuestion = () => {
     setEditingQuestionIndex(null);
-    setCurrentQuestion({ text: '', options: ['', '', '', ''], correctOption: 0 });
+    setCurrentQuestion({ text: '', type: 'single', options: ['', '', '', ''], correctOption: 0, correctOptions: [0] });
   };
 
   const handleSaveTest = () => {
@@ -966,6 +966,13 @@ const AdminDashboard = () => {
                             {builderMode === 'manual' ? (
                               <div className="manual-entry-section fade-in">
                                 <div className="form-group" style={{ marginBottom: '16px' }}>
+                                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#334155', fontWeight: '600' }}>Question Type</label>
+                                  <select className="modern-input" value={currentQuestion.type || 'single'} onChange={e => setCurrentQuestion({...currentQuestion, type: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                                    <option value="single">Single Choice</option>
+                                    <option value="multiple">Multiple Choice</option>
+                                  </select>
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '16px' }}>
                                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#334155', fontWeight: '600' }}>Question Text</label>
                                   <input type="text" className="modern-input" value={currentQuestion.text} onChange={e => setCurrentQuestion({...currentQuestion, text: e.target.value})} placeholder="What is the capital of France?" style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
                                 </div>
@@ -973,7 +980,15 @@ const AdminDashboard = () => {
                                   {currentQuestion.options.map((opt, idx) => (
                                     <div key={idx} className="form-group">
                                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}>
-                                        <input type="radio" name="correctOpt" checked={currentQuestion.correctOption === idx} onChange={() => setCurrentQuestion({...currentQuestion, correctOption: idx})} />
+                                        {(!currentQuestion.type || currentQuestion.type === 'single') ? (
+                                          <input type="radio" name="correctOpt" checked={currentQuestion.correctOption === idx} onChange={() => setCurrentQuestion({...currentQuestion, correctOption: idx})} />
+                                        ) : (
+                                          <input type="checkbox" checked={currentQuestion.correctOptions?.includes(idx)} onChange={(e) => {
+                                            const opts = currentQuestion.correctOptions || [];
+                                            const newOpts = e.target.checked ? [...opts, idx] : opts.filter(o => o !== idx);
+                                            setCurrentQuestion({...currentQuestion, correctOptions: newOpts});
+                                          }} />
+                                        )}
                                         Option {String.fromCharCode(65 + idx)}
                                       </label>
                                       <input type="text" className="modern-input" value={opt} onChange={e => {
@@ -1025,11 +1040,14 @@ const AdminDashboard = () => {
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {q.options.map((opt, oIdx) => (
-                                      <div key={oIdx} style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: oIdx === q.correctOption ? '#dcfce3' : 'white', border: '1px solid #e2e8f0', borderRadius: '4px', color: oIdx === q.correctOption ? '#166534' : '#334155' }}>
-                                        {String.fromCharCode(65 + oIdx)}. {opt} {oIdx === q.correctOption && <Check size={14} style={{marginLeft: '8px'}}/>}
-                                      </div>
-                                    ))}
+                                    {q.options.map((opt, oIdx) => {
+                                      const isCorrect = (!q.type || q.type === 'single') ? (oIdx === q.correctOption) : (q.correctOptions?.includes(oIdx));
+                                      return (
+                                        <div key={oIdx} style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: isCorrect ? '#dcfce3' : 'white', border: '1px solid #e2e8f0', borderRadius: '4px', color: isCorrect ? '#166534' : '#334155' }}>
+                                          {String.fromCharCode(65 + oIdx)}. {opt} {isCorrect && <Check size={14} style={{marginLeft: '8px'}}/>}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                   <div style={{ marginTop: '12px', fontSize: '0.8rem', color: '#64748b' }}>Section: <strong>{q.sectionName || 'Section 1'}</strong></div>
                                 </div>
@@ -1144,12 +1162,15 @@ const AdminDashboard = () => {
                                     <div style={{ flex: 1 }}>
                                       <div style={{ color: '#0f172a', fontSize: '1.15rem', marginBottom: '12px', lineHeight: '1.5' }} dangerouslySetInnerHTML={{ __html: q.text || '<em>Empty question</em>' }}></div>
                                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                        {q.options.map((opt, oIdx) => (
-                                          <div key={oIdx} style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '1rem', color: oIdx === q.correctOption ? '#15803d' : '#334155', background: oIdx === q.correctOption ? '#f0fdf4' : 'transparent', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            {oIdx === q.correctOption && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                                            <span style={{ lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: opt || '<em>Empty option</em>' }}></span>
-                                          </div>
-                                        ))}
+                                        {q.options.map((opt, oIdx) => {
+                                          const isCorrect = (!q.type || q.type === 'single') ? (oIdx === q.correctOption) : (q.correctOptions?.includes(oIdx));
+                                          return (
+                                            <div key={oIdx} style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '1rem', color: isCorrect ? '#15803d' : '#334155', background: isCorrect ? '#f0fdf4' : 'transparent', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                              {isCorrect && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                              <span style={{ lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: opt || '<em>Empty option</em>' }}></span>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '16px', color: '#64748b', marginLeft: '16px' }}>
@@ -1753,25 +1774,33 @@ const parsePastedQuestions = (rawText) => {
       questionText = questionLines.join(' ').replace(/^\d+[.)]\s*/, '');
       options = possibleOptions.slice(0, 4).map(o => o.text);
       let ansIdx = -1;
+      let ansIndices = [];
+      let type = 'single';
       if (answerVal) {
-        let cleanAns = answerVal.replace(/^(?:OPTION|CHOICE)\s*/i, '').trim();
-        if (['A', 'B', 'C', 'D'].includes(cleanAns)) ansIdx = ['A', 'B', 'C', 'D'].indexOf(cleanAns);
-        else if (['1', '2', '3', '4'].includes(cleanAns)) ansIdx = parseInt(cleanAns, 10) - 1;
-        else {
-          const matchedOpt = options.findIndex(opt => opt.toLowerCase() === answerVal.toLowerCase());
-          if (matchedOpt !== -1) ansIdx = matchedOpt;
+        let cleanAns = answerVal.replace(/^(?:OPTION|CHOICE|ANSWERS?)\s*/i, '').replace(/and/gi, ',').trim();
+        const parts = cleanAns.split(/[,\s]+/).filter(Boolean);
+        parts.forEach(part => {
+          if (['A', 'B', 'C', 'D'].includes(part)) ansIndices.push(['A', 'B', 'C', 'D'].indexOf(part));
+          else if (['1', '2', '3', '4'].includes(part)) ansIndices.push(parseInt(part, 10) - 1);
           else {
-            const matchedOptClean = options.findIndex(opt => opt.toLowerCase() === cleanAns.toLowerCase());
-            if (matchedOptClean !== -1) ansIdx = matchedOptClean;
+            const matchedOpt = options.findIndex(opt => opt.toLowerCase() === part.toLowerCase());
+            if (matchedOpt !== -1) ansIndices.push(matchedOpt);
+            else {
+              const matchedOptClean = options.findIndex(opt => opt.toLowerCase() === cleanAns.toLowerCase());
+              if (matchedOptClean !== -1) ansIndices.push(matchedOptClean);
+            }
           }
-        }
+        });
+        if (ansIndices.length > 1) type = 'multiple';
+        else if (ansIndices.length === 1) ansIdx = ansIndices[0];
       }
-      correctOption = ansIdx !== -1 ? ansIdx : 0;
+      correctOption = ansIndices.length > 0 ? ansIndices[0] : 0;
+      let correctOptions = ansIndices.length > 0 ? ansIndices : [0];
     }
 
     if (questionText && options.length >= 2) {
       while (options.length < 4) options.push(`Option ${options.length + 1}`);
-      parsedQuestions.push({ text: questionText, options, correctOption });
+      parsedQuestions.push({ text: questionText, type, options, correctOption, correctOptions });
     }
   });
 

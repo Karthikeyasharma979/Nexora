@@ -620,7 +620,7 @@ const Diagnostics = () => {
                             Requesting Screen Share Permissions. Please click on <strong>Start Screen Capture</strong> below.
                           </span>
                           <button 
-                            onClick={requestScreenShare} 
+                            onClick={window?.navigator?.userAgent?.toLowerCase()?.includes('electron') ? requestScreenCaptureElectron : requestScreenShare}
                             style={{
                               padding: '10px 20px', 
                               fontSize: '14px', 
@@ -661,7 +661,7 @@ const Diagnostics = () => {
                             {screenErrorMessage || "Screen Share Denied. Please allow to continue."}
                           </span>
                           <button 
-                            onClick={requestScreenShare} 
+                            onClick={window?.navigator?.userAgent?.toLowerCase()?.includes('electron') ? requestScreenCaptureElectron : requestScreenShare}
                             style={{
                               padding: '6px 12px', 
                               fontSize: '12px', 
