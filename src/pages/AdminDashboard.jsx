@@ -1016,7 +1016,7 @@ const AdminDashboard = () => {
                                   </div>
                                   <div className="form-group" style={{ marginBottom: '16px' }}>
                                     <label style={{ color: '#334155', display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Paste Questions & Answers Here</label>
-                                    <textarea className="modern-input" rows="10" value={bulkText} onChange={e => setBulkText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', fontSize: '13px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: '12px', borderRadius: '4px' }} placeholder={"Example:\n1. What is React?\nA) A library\nB) A framework\nC) A database\nD) A language\nAnswer: A"} />
+                                    <textarea className="modern-input" rows="10" value={bulkText} onChange={e => setBulkText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', fontSize: '13px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: '12px', borderRadius: '4px' }} placeholder={"Example 1 (Single Choice):\n1. What is React?\nA) A library\nB) A framework\nC) A database\nD) A language\nAnswer: A\n\nExample 2 (Multiple Choice):\n2. Which are databases?\nA) MongoDB\nB) React\nC) PostgreSQL\nD) Angular\nAnswer: A,B"} />
                                   </div>
                                   <div>
                                     <button type="button" className="btn-primary" onClick={handleBulkParse} style={{ background: '#0052cc !important', color: 'white !important', padding: '10px 24px !important', borderRadius: '4px !important' }}>Extract & Import Questions</button>
@@ -1744,6 +1744,8 @@ const parsePastedQuestions = (rawText) => {
     let questionText = '';
     let options = [];
     let correctOption = 0;
+    let type = 'single';
+    let correctOptions = [0];
     
     let answerLineIndex = -1;
     let answerVal = '';
@@ -1761,7 +1763,11 @@ const parsePastedQuestions = (rawText) => {
 
     lines.forEach((line, idx) => {
       if (idx === answerLineIndex) return;
-      const optionMatch = line.match(/^(?:([A-D]|[a-d]|[1-4]))(?:[.)-]?\s+)(.*)$/);
+      if (idx === 0) {
+        questionLines.push(line);
+        return;
+      }
+      const optionMatch = line.match(/^(?:([A-D]|[a-d]|[1-4]))(?:[.)-]\s+)(.*)$/);
       if (optionMatch) {
         possibleOptions.push({ label: optionMatch[1].toUpperCase(), text: optionMatch[2].trim() });
       } else {
@@ -1775,7 +1781,6 @@ const parsePastedQuestions = (rawText) => {
       options = possibleOptions.slice(0, 4).map(o => o.text);
       let ansIdx = -1;
       let ansIndices = [];
-      let type = 'single';
       if (answerVal) {
         let cleanAns = answerVal.replace(/^(?:OPTION|CHOICE|ANSWERS?)\s*/i, '').replace(/and/gi, ',').trim();
         const parts = cleanAns.split(/[,\s]+/).filter(Boolean);
@@ -1795,7 +1800,7 @@ const parsePastedQuestions = (rawText) => {
         else if (ansIndices.length === 1) ansIdx = ansIndices[0];
       }
       correctOption = ansIndices.length > 0 ? ansIndices[0] : 0;
-      let correctOptions = ansIndices.length > 0 ? ansIndices : [0];
+      correctOptions = ansIndices.length > 0 ? ansIndices : [0];
     }
 
     if (questionText && options.length >= 2) {
