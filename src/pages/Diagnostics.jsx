@@ -603,8 +603,6 @@ const Diagnostics = () => {
                   </div>
                 </div>
 
-                </div>
-
                 {/* Step 3 */}
                 {testDetails?.requireScreenShare !== false && (
                 <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '20px' }}>
