@@ -1731,10 +1731,23 @@ export default AdminDashboard;
 
 const parsePastedQuestions = (rawText) => {
   const normalized = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  let segments = normalized.split(/\n\s*\n/);
+  
+  let initialSegments = normalized.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  let segments = [];
+  
+  initialSegments.forEach(seg => {
+    if (segments.length > 0 && /^(?:[a-d])[.)-]\s+|^correct\s+answer:|^answer:/i.test(seg)) {
+      segments[segments.length - 1] += '\n' + seg;
+    } else {
+      segments.push(seg);
+    }
+  });
+
   if (segments.length <= 1) {
-    const matches = normalized.split(/(?=\n\d+[.)])|^(?=\d+[.)])/);
-    if (matches.length > 1) segments = matches;
+    const matches = normalized.split(/(?=\n\d+[.)]\s)|^(?=\d+[.)]\s)/).map(s => s.trim()).filter(Boolean);
+    if (matches.length > 1) {
+      segments = matches;
+    }
   }
   const parsedQuestions = [];
   segments.forEach(segment => {
