@@ -121,7 +121,8 @@ const Diagnostics = () => {
       setTimeout(() => setPermissionsStatus('granted'), 0);
     }
     
-    if (testDetails?.requireScreenShare === false) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (testDetails?.requireScreenShare === false || isMobile) {
       setTimeout(() => setScreenStatus('granted'), 0);
     }
   }, [testDetails, requestPermissions]);
@@ -182,7 +183,8 @@ const Diagnostics = () => {
 
   const handleProceed = () => {
     if (currentPhase === 0) {
-      const isScreenGranted = screenStatus === 'granted' || testDetails?.requireScreenShare === false;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isScreenGranted = screenStatus === 'granted' || testDetails?.requireScreenShare === false || isMobile;
       if (permissionsStatus === 'granted' && isScreenGranted) {
         setCurrentPhase(1); // Move to Instructions phase
       } else {
@@ -604,7 +606,7 @@ const Diagnostics = () => {
                 </div>
 
                 {/* Step 3 */}
-                {testDetails?.requireScreenShare !== false && (
+                {testDetails?.requireScreenShare !== false && !(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) && (
                 <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '20px' }}>
                   {screenStatus === 'granted' ? (
                     <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />

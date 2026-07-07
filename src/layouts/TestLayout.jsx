@@ -19,7 +19,8 @@ const TestLayout = () => {
         .then(test => {
           if (test) {
             if (test.requireCamera === false) setRequireCamera(false);
-            if (test.requireScreenShare === false) setRequireScreenShare(false);
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (test.requireScreenShare === false || isMobile) setRequireScreenShare(false);
             if (test.requireSEB === false) setRequireSEB(false);
             if (test.browsingToleranceMode) setBrowsingToleranceMode(test.browsingToleranceMode);
             if (test.browsingToleranceCount !== undefined) setBrowsingToleranceCount(test.browsingToleranceCount);
