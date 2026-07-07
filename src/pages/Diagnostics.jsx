@@ -119,7 +119,10 @@ const Diagnostics = () => {
     } else {
       // If camera not required, simulate permissions granted so they can proceed immediately
       setTimeout(() => setPermissionsStatus('granted'), 0);
-      // Do not automatically grant screenStatus so that screen sharing (proctoring) still works
+    }
+    
+    if (testDetails?.requireScreenShare === false) {
+      setTimeout(() => setScreenStatus('granted'), 0);
     }
   }, [testDetails, requestPermissions]);
 
@@ -179,10 +182,11 @@ const Diagnostics = () => {
 
   const handleProceed = () => {
     if (currentPhase === 0) {
-      if (permissionsStatus === 'granted' && screenStatus === 'granted') {
+      const isScreenGranted = screenStatus === 'granted' || testDetails?.requireScreenShare === false;
+      if (permissionsStatus === 'granted' && isScreenGranted) {
         setCurrentPhase(1); // Move to Instructions phase
       } else {
-        alert("You must grant both camera/microphone and screen sharing permissions to proceed.");
+        alert("You must grant the required permissions to proceed.");
       }
     } else if (currentPhase === 1) {
       setCurrentPhase(2); // Move to Registration phase
@@ -599,7 +603,10 @@ const Diagnostics = () => {
                   </div>
                 </div>
 
+                </div>
+
                 {/* Step 3 */}
+                {testDetails?.requireScreenShare !== false && (
                 <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '20px' }}>
                   {screenStatus === 'granted' ? (
                     <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
@@ -680,6 +687,7 @@ const Diagnostics = () => {
                     </span>
                   </div>
                 </div>
+                )}
               </div>
             </>
           ) : currentPhase === 1 ? (

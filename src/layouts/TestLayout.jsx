@@ -6,6 +6,7 @@ import { getTestById } from '../utils/db';
 const TestLayout = () => {
   const { testId } = useParams();
   const [requireCamera, setRequireCamera] = useState(true); // default true for safety
+  const [requireScreenShare, setRequireScreenShare] = useState(true);
   const [requireSEB, setRequireSEB] = useState(true);
   const [browsingToleranceMode, setBrowsingToleranceMode] = useState('custom');
   const [browsingToleranceCount, setBrowsingToleranceCount] = useState(3);
@@ -18,6 +19,7 @@ const TestLayout = () => {
         .then(test => {
           if (test) {
             if (test.requireCamera === false) setRequireCamera(false);
+            if (test.requireScreenShare === false) setRequireScreenShare(false);
             if (test.requireSEB === false) setRequireSEB(false);
             if (test.browsingToleranceMode) setBrowsingToleranceMode(test.browsingToleranceMode);
             if (test.browsingToleranceCount !== undefined) setBrowsingToleranceCount(test.browsingToleranceCount);
@@ -39,6 +41,7 @@ const TestLayout = () => {
   return (
     <ProctoringEngine 
       requireCamera={requireCamera} 
+      requireScreenShare={requireScreenShare}
       requireSEB={requireSEB}
       browsingToleranceMode={browsingToleranceMode}
       browsingToleranceCount={browsingToleranceCount}

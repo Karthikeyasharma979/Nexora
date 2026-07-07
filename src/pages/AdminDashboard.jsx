@@ -29,6 +29,7 @@ const AdminDashboard = () => {
   const [timeMode, setTimeMode] = useState('overall');
   const [sectionDurations, setSectionDurations] = useState({});
   const [newTestRequireCamera, setNewTestRequireCamera] = useState(true);
+  const [newTestRequireScreenShare, setNewTestRequireScreenShare] = useState(true);
   const [newTestRequireSEB, setNewTestRequireSEB] = useState(true);
   const [browsingToleranceMode, setBrowsingToleranceMode] = useState('custom');
   const [browsingToleranceCount, setBrowsingToleranceCount] = useState(3);
@@ -173,6 +174,7 @@ const AdminDashboard = () => {
     setNewTestDuration(t.duration ? t.duration / 60 : 15);
     setNewTestType(t.type || 'timed');
     setNewTestRequireCamera(t.requireCamera ?? true);
+    setNewTestRequireScreenShare(t.requireScreenShare ?? true);
     setNewTestRequireSEB(t.requireSEB ?? true);
     setBrowsingToleranceMode(t.browsingToleranceMode || 'custom');
     setBrowsingToleranceCount(t.browsingToleranceCount ?? 3);
@@ -219,6 +221,7 @@ const AdminDashboard = () => {
     setTimeMode('overall');
     setSectionDurations({});
     setNewTestRequireCamera(true);
+    setNewTestRequireScreenShare(true);
     setNewTestRequireSEB(true);
     setBrowsingToleranceMode('custom');
     setBrowsingToleranceCount(3);
@@ -315,6 +318,7 @@ const AdminDashboard = () => {
       timeMode: timeMode,
       sectionDurations: cleanedSectionDurations,
       requireCamera: newTestRequireCamera,
+      requireScreenShare: newTestRequireScreenShare,
       requireSEB: newTestRequireSEB,
       browsingToleranceMode,
       browsingToleranceCount: browsingToleranceMode === 'custom' ? browsingToleranceCount : null,
@@ -353,6 +357,7 @@ const AdminDashboard = () => {
             setTimeMode('overall');
             setSectionDurations({});
             setNewTestRequireCamera(true);
+            setNewTestRequireScreenShare(true);
             setNewTestRequireSEB(true);
             setBrowsingToleranceMode('custom');
             setBrowsingToleranceCount(3);
@@ -382,6 +387,7 @@ const AdminDashboard = () => {
         setTimeMode('overall');
         setSectionDurations({});
         setNewTestRequireCamera(true);
+        setNewTestRequireScreenShare(true);
         setNewTestRequireSEB(true);
         setBrowsingToleranceMode('custom');
         setBrowsingToleranceCount(3);
@@ -1373,6 +1379,18 @@ const AdminDashboard = () => {
                             <div>
                               <button type="button" role="switch" aria-checked={newTestRequireCamera} onClick={() => setNewTestRequireCamera(!newTestRequireCamera)} style={{ position: 'relative', display: 'inline-flex', height: '24px', width: '44px', alignItems: 'center', borderRadius: '9999px', backgroundColor: newTestRequireCamera ? '#22c55e' : '#cbd5e1', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease-in-out' }}>
                                 <span style={{ display: 'inline-block', height: '18px', width: '18px', borderRadius: '9999px', backgroundColor: 'white', transform: newTestRequireCamera ? 'translateX(22px)' : 'translateX(3px)', transition: 'transform 0.2s ease-in-out', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '24px' }}>
+                            <div style={{ flex: 1 }}>
+                              <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: '#0f172a' }}>Screen Sharing Proctoring</h4>
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Require screen sharing (Not supported on mobile)</p>
+                            </div>
+                            <div>
+                              <button type="button" role="switch" aria-checked={newTestRequireScreenShare} onClick={() => setNewTestRequireScreenShare(!newTestRequireScreenShare)} style={{ position: 'relative', display: 'inline-flex', height: '24px', width: '44px', alignItems: 'center', borderRadius: '9999px', backgroundColor: newTestRequireScreenShare ? '#22c55e' : '#cbd5e1', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease-in-out' }}>
+                                <span style={{ display: 'inline-block', height: '18px', width: '18px', borderRadius: '9999px', backgroundColor: 'white', transform: newTestRequireScreenShare ? 'translateX(22px)' : 'translateX(3px)', transition: 'transform 0.2s ease-in-out', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
                               </button>
                             </div>
                           </div>

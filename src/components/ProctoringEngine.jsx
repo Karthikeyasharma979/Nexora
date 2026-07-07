@@ -6,7 +6,7 @@ import { playViolationWarning } from '../utils/audioUtils';
 import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
-const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3, watermark = true }) => {
+const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3, watermark = true }) => {
   const isElectron = window.secure?.isNexoraKiosk === true;
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
@@ -208,7 +208,7 @@ const ProctoringEngine = ({ children, requireCamera = true, requireSEB = true, b
     
     let screenTracks = [];
     let screenShareInterval;
-    if (window.globalScreenStream) {
+    if (requireScreenShare && window.globalScreenStream) {
       screenTracks = window.globalScreenStream.getTracks();
       let alreadyEnded = false;
       screenTracks.forEach(track => {
