@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import '@tensorflow/tfjs';
@@ -6,7 +6,7 @@ import { playViolationWarning } from '../utils/audioUtils';
 import { ShieldCheck, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import './ProctoringEngine.css';
 
-const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare = true, requireSEB = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3, watermark = true }) => {
+const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare = true, browsingToleranceMode = 'custom', browsingToleranceCount = 3, watermark = true }) => {
   const isElectron = window.secure?.isNexoraKiosk === true;
   const [violations, setViolations] = useState([]);
   const violationsRef = useRef([]);
@@ -18,13 +18,11 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
   const [violationLevel, setViolationLevel] = useState(null); // 'warning', 'severe', null
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
-  const [showPreCrimeWarning, setShowPreCrimeWarning] = useState(false);
-  const lastMousePos = useRef({ y: 0, time: Date.now() });
   const videoRef = useRef(null);
 
   // Forensic Watermark Info
   const candidateName = sessionStorage.getItem('candidateName') || 'Candidate';
-  const sessionId = useMemo(() => Math.random().toString(36).substring(2, 10).toUpperCase(), []);
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 10).toUpperCase());
   const dateStr = new Date().toISOString().split('T')[0];
   const watermarkText = `${candidateName} • ${sessionId} • ${dateStr} • NEXORA SECURE`;
   

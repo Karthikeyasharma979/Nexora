@@ -445,7 +445,7 @@ const TestInterface = () => {
 
       if (!testDetails || showSettingsDropdown || showFinishPanel || showInfoModal) return;
 
-      const totalQ = testDetails.questions.length;
+      if (!testDetails || showSettingsDropdown || showFinishPanel || showInfoModal) return;
       const currentQ = testDetails.questions[currentQuestionIdx];
 
       switch (e.key) {
@@ -524,10 +524,9 @@ const TestInterface = () => {
     displayedQuestions = displayedQuestions.filter(item => answers[item.q.id] === undefined);
   }
 
-  const isFirstQuestionOfTest = currentQuestionIdx === 0;
   const isFirstQuestionOfSection = currentQuestionIdx === sections[currentSectionIndex].startIndex;
   
-  const isLastQuestionOfTest = currentQuestionIdx === totalQ - 1;
+  const isLastQuestionOfTest = currentQuestionIdx === (testDetails?.questions?.length || 0) - 1;
   const isLastQuestionOfCurrentSection = currentQuestionIdx === sections[currentSectionIndex].startIndex + sections[currentSectionIndex].count - 1;
   const hasMoreSections = currentSectionIndex < sections.length - 1;
 

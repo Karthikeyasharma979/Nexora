@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
+new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -42,7 +42,7 @@ const authenticateAdmin = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.role !== 'admin') throw new Error('Not admin');
     next();
-  } catch (error) {
+  } catch {
     return res.status(403).json({ error: 'Forbidden: Invalid token' });
   }
 };
@@ -89,7 +89,7 @@ function initInMemoryDb() {
 }
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI)
+const dbInitPromise = mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Successfully connected to MongoDB.');
     seedDatabase();
@@ -99,6 +99,14 @@ mongoose.connect(MONGODB_URI)
     console.log('👉 Resolving: DNS lookup or network restrictions blocked MongoDB Atlas. Activating robust in-memory database fallback...');
     initInMemoryDb();
   });
+
+// Wait for DB or Fallback initialization before processing API requests
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    await dbInitPromise;
+  }
+  next();
+});
 
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ MongoDB connection lost. Automatically switching to in-memory fallback mode.');

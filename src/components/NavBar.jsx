@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { ShieldCheck, Lock, Menu, X } from 'lucide-react';
 import './NavBar.css';

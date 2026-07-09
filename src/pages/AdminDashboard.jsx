@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAllTests, saveTest, getAllReports, generateInviteLink, sendEmailInvite } from '../utils/db';
-import { ClipboardList, Users, AlertOctagon, Plus, Copy, Eye, EyeOff, Trash2, Edit2, Mail, X, Send, CheckCircle, Link as LinkIcon, ChevronDown, ChevronsUpDown, BarChart2, FolderPlus, Search, Check } from 'lucide-react';
+import { ClipboardList, Users, AlertOctagon, Plus, Copy, Eye, EyeOff, Trash2, Edit2, Mail, X, Send, CheckCircle, Link as LinkIcon, ChevronDown, ChevronsUpDown, Search, Check } from 'lucide-react';
 import './AdminDashboard.css';
 import testBcImage from '../assets/test-bc.png';
 
@@ -453,7 +453,7 @@ const AdminDashboard = () => {
       const inviteLink = `${window.location.origin}/#/invite/${data.token}`;
       navigator.clipboard.writeText(inviteLink);
       alert('Link copied to clipboard!\n\nCandidates can click this link to start the test.');
-    } catch(err) {
+    } catch {
       alert('Error generating secure token.');
     }
   };
@@ -1570,7 +1570,6 @@ const AdminDashboard = () => {
                   <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
                       <input type="checkbox" checked={timeMode === 'section'} onChange={e => {
-                        setSectionTiming(e.target.checked);
                         setTimeMode(e.target.checked ? 'section' : 'overall');
                       }} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
                       <div>
@@ -1810,7 +1809,7 @@ const parsePastedQuestions = (rawText) => {
     if (possibleOptions.length >= 2) {
       questionText = questionLines.join(' ').replace(/^\d+[.)]\s*/, '');
       options = possibleOptions.slice(0, 4).map(o => o.text);
-      let ansIdx = -1;
+
       let ansIndices = [];
       if (answerVal) {
         let cleanAns = answerVal.replace(/^(?:OPTION|CHOICE|ANSWERS?)\s*/i, '').replace(/and/gi, ',').trim();
@@ -1828,7 +1827,6 @@ const parsePastedQuestions = (rawText) => {
           }
         });
         if (ansIndices.length > 1) type = 'multiple';
-        else if (ansIndices.length === 1) ansIdx = ansIndices[0];
       }
       correctOption = ansIndices.length > 0 ? ansIndices[0] : 0;
       correctOptions = ansIndices.length > 0 ? ansIndices : [0];

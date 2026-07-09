@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Bell, Globe, Download, Type, HelpCircle, Menu, X, ShieldCheck } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
