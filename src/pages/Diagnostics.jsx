@@ -53,6 +53,17 @@ const Diagnostics = () => {
     getTestById(testId)
       .then(test => {
         if (test) {
+          const now = new Date();
+          if (test.startTime && now < new Date(test.startTime)) {
+            alert(`This test will not start until ${new Date(test.startTime).toLocaleString()}.`);
+            navigate('/', { replace: true });
+            return;
+          }
+          if (test.endTime && now > new Date(test.endTime)) {
+            alert(`This test ended on ${new Date(test.endTime).toLocaleString()}.`);
+            navigate('/', { replace: true });
+            return;
+          }
           setTestDetails(test);
         } else {
           navigate('/', { replace: true });

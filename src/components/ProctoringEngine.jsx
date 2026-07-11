@@ -12,7 +12,16 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
   const violationsRef = useRef([]);
   const [isFullscreen, setIsFullscreen] = useState(isElectron || !!document.fullscreenElement);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [hasCameraError, setHasCameraError] = useState(false);
   const [isCameraMinimized, setIsCameraMinimized] = useState(false);
+  
+  // Enforce screen share restoration on page reload
+  const [isScreenShareRestored, setIsScreenShareRestored] = useState(() => {
+    if (isElectron) return true;
+    if (!requireScreenShare) return true;
+    return !!window.globalScreenStream;
+  });
+
   const [activeWarning, setActiveWarning] = useState(null); // Custom alert overlay
   const [proctoringStatus, setProctoringStatus] = useState('Monitoring Active');
   const [violationLevel, setViolationLevel] = useState(null); // 'warning', 'severe', null
@@ -202,11 +211,13 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
     // 5. Monitor Screen Share Status
     const handleScreenShareEnded = () => {
       addViolation('SCREEN_SHARE_STOPPED', 'Candidate stopped screen sharing during the test.', 'Zero Tolerance Violation: Screen sharing was stopped.');
+      setIsScreenShareRestored(false);
+      window.globalScreenStream = null;
     };
     
     let screenTracks = [];
     let screenShareInterval;
-    if (requireScreenShare && window.globalScreenStream) {
+    if (requireScreenShare && isScreenShareRestored && window.globalScreenStream) {
       screenTracks = window.globalScreenStream.getTracks();
       let alreadyEnded = false;
       screenTracks.forEach(track => {
@@ -247,7 +258,7 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
         track.removeEventListener('ended', handleScreenShareEnded);
       });
     };
-  }, []);
+  }, [requireScreenShare, isScreenShareRestored]);
 
   // 5. Fullscreen Enforcement
   const enforceFullscreen = () => {
@@ -471,6 +482,7 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
             const videoTrack = stream.getVideoTracks()[0];
             if (videoTrack) {
               videoTrack.onended = () => {
+                setHasCameraError(true);
                 addViolation('CAMERA_DISCONNECTED', 'Hardware camera feed disconnected.', 'WARNING: Camera disconnected! Please plug your camera back in immediately.');
                 setIsCameraActive(false);
               };
@@ -479,6 +491,7 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
         })
         .catch((err) => {
           console.error("Error accessing webcam/mic:", err);
+          setHasCameraError(true);
           addViolation('CAMERA_DENIED', 'Camera/Mic access was denied or failed.', 'WARNING: Camera access failed. Please ensure it is plugged in and permissions are granted.');
         });
     };
@@ -607,7 +620,7 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
         </div>
       )}
 
-      <div style={{ display: !isFullscreen ? 'flex' : 'none', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white' }}>
+      <div style={{ display: !isFullscreen ? 'flex' : 'none', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }}>
         <h2>Fullscreen Required</h2>
         <p style={{ margin: '20px 0', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
           This is a proctored exam. You must remain in fullscreen mode to continue. Any attempt to exit fullscreen will be recorded as a violation.
@@ -619,7 +632,42 @@ const ProctoringEngine = ({ children, requireCamera = true, requireScreenShare =
           Enter Fullscreen & Return to Test
         </button>
       </div>
-      <div style={{ display: isFullscreen ? 'block' : 'none', height: '100%' }}>
+
+      <div style={{ display: !isScreenShareRestored ? 'flex' : 'none', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+        <h2>Screen Share Required</h2>
+        <p style={{ margin: '20px 0', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
+          Your screen sharing session was disconnected or you reloaded the page. You must share your screen to continue the test.
+        </p>
+        <button 
+          onClick={async () => {
+            try {
+              const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" } });
+              window.globalScreenStream = stream;
+              setIsScreenShareRestored(true);
+            } catch (e) {
+              alert('Screen share permission denied. You cannot continue without it.');
+            }
+          }} 
+          style={{ padding: '12px 24px', backgroundColor: '#1e56a0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}
+        >
+          Resume Screen Share
+        </button>
+      </div>
+
+      <div style={{ display: (requireCamera && hasCameraError) ? 'flex' : 'none', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a1d47', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+        <h2>Camera Access Required</h2>
+        <p style={{ margin: '20px 0', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
+          Your webcam is disconnected or permissions were revoked. You must allow camera access to continue the proctored test.
+        </p>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ padding: '12px 24px', backgroundColor: '#1e56a0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}
+        >
+          Refresh Page to Retry
+        </button>
+      </div>
+
+      <div style={{ display: (isFullscreen && isScreenShareRestored && (!requireCamera || !hasCameraError)) ? 'block' : 'none', height: '100%' }}>
         {children}
       </div>
     </>

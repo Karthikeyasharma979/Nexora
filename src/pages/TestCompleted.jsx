@@ -10,13 +10,14 @@ const TestCompleted = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const score = location.state?.score || 'N/A';
-  const candidateName = location.state?.candidateName || 'Candidate';
-  const testDetails = location.state?.testDetails || null;
-  const answers = location.state?.answers || {};
-  const correctAnswers = location.state?.correctAnswers || {};
-  const status = location.state?.status || 'Completed';
-  const terminationReason = location.state?.terminationReason || 'Your exam was forcefully terminated due to excessive proctoring violations.';
+  const stateSource = location.state || JSON.parse(sessionStorage.getItem('last_test_completion_state')) || {};
+  const score = stateSource.score || 'N/A';
+  const candidateName = stateSource.candidateName || 'Candidate';
+  const testDetails = stateSource.testDetails || null;
+  const answers = stateSource.answers || {};
+  const correctAnswers = stateSource.correctAnswers || {};
+  const status = stateSource.status || 'Completed';
+  const terminationReason = stateSource.terminationReason || 'Your exam was forcefully terminated due to excessive proctoring violations.';
 
   useEffect(() => {
     // Trap the back button to prevent returning to the exam

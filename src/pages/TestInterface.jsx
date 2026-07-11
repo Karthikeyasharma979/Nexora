@@ -40,10 +40,23 @@ const TestInterface = () => {
   const [testDetails, setTestDetails] = useState(null);
   const [errorReason, setErrorReason] = useState(null);
   
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [revisited, setRevisited] = useState({});
-  const [viewed, setViewed] = useState({});
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(() => {
+    const saved = sessionStorage.getItem(`ti_currentQuestionIdx_${testId}`);
+    return saved ? parseInt(saved) : 0;
+  });
+  const [answers, setAnswers] = useState(() => {
+    const saved = sessionStorage.getItem(`ti_answers_${testId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [revisited, setRevisited] = useState(() => {
+    const saved = sessionStorage.getItem(`ti_revisited_${testId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [viewed, setViewed] = useState(() => {
+    const saved = sessionStorage.getItem(`ti_viewed_${testId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+  const questionStartTimeRef = useRef(0);
   const [showFinishPanel, setShowFinishPanel] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -64,7 +77,15 @@ const TestInterface = () => {
 
   useEffect(() => {
     lastSavedTimeRef.current = Date.now();
-  }, [answers, revisited]);
+    sessionStorage.setItem(`ti_answers_${testId}`, JSON.stringify(answers));
+    sessionStorage.setItem(`ti_revisited_${testId}`, JSON.stringify(revisited));
+    sessionStorage.setItem(`ti_viewed_${testId}`, JSON.stringify(viewed));
+    sessionStorage.setItem(`ti_currentQuestionIdx_${testId}`, currentQuestionIdx.toString());
+  }, [answers, revisited, viewed, currentQuestionIdx, testId]);
+
+  useEffect(() => {
+    questionStartTimeRef.current = Date.now();
+  }, [currentQuestionIdx]);
   
   // New Functional States
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -96,6 +117,16 @@ const TestInterface = () => {
     getTestById(testId)
       .then(test => {
         if (test) {
+          const now = new Date();
+          if (test.startTime && now < new Date(test.startTime)) {
+            setErrorReason(`This test will not start until ${new Date(test.startTime).toLocaleString()}.`);
+            return;
+          }
+          if (test.endTime && now > new Date(test.endTime)) {
+            setErrorReason(`This test ended on ${new Date(test.endTime).toLocaleString()}.`);
+            return;
+          }
+
           // --- Cryptographic Shuffling Logic ---
           const shuffleArray = (array) => {
             const newArr = [...array];
@@ -146,18 +177,34 @@ const TestInterface = () => {
           }
           // --- End Shuffling ---
 
-          setTestDetails(randomizedTest);
+          const cachedTest = sessionStorage.getItem(`ti_testDetails_${testId}`);
+          const finalTestDetails = cachedTest ? JSON.parse(cachedTest) : randomizedTest;
+          if (!cachedTest) sessionStorage.setItem(`ti_testDetails_${testId}`, JSON.stringify(finalTestDetails));
+          setTestDetails(finalTestDetails);
           
-          if (test.timeMode === 'section') {
-            const firstSecName = randomizedTest.questions[0]?.sectionName || 'Section 1';
-            const firstSecDur = (test.sectionDurations && test.sectionDurations[firstSecName]) || 15;
-            setTimeRemaining(firstSecDur * 60);
-            totalDurationRef.current = firstSecDur * 60;
-            endTimeRef.current = Date.now() + firstSecDur * 60 * 1000;
+          const cachedEndTime = sessionStorage.getItem(`ti_endTime_${testId}`);
+          if (cachedEndTime) {
+            const remaining = Math.floor((parseInt(cachedEndTime) - Date.now()) / 1000);
+            setTimeRemaining(remaining > 0 ? remaining : 0);
+            endTimeRef.current = parseInt(cachedEndTime);
+            const cachedIdxStr = sessionStorage.getItem(`ti_currentIdx_${testId}`);
+            const initQuestionIdx = cachedIdxStr ? parseInt(cachedIdxStr) : 0;
+            totalDurationRef.current = finalTestDetails.timeMode === 'section' 
+              ? ((finalTestDetails.sectionDurations && finalTestDetails.sectionDurations[finalTestDetails.questions[initQuestionIdx]?.sectionName || 'Section 1']) || 15) * 60
+              : (finalTestDetails.duration || 3600);
           } else {
-            setTimeRemaining(test.duration || 3600);
-            totalDurationRef.current = test.duration || 3600;
-            endTimeRef.current = Date.now() + (test.duration || 3600) * 1000;
+            if (test.timeMode === 'section') {
+              const firstSecName = finalTestDetails.questions[0]?.sectionName || 'Section 1';
+              const firstSecDur = (test.sectionDurations && test.sectionDurations[firstSecName]) || 15;
+              setTimeRemaining(firstSecDur * 60);
+              totalDurationRef.current = firstSecDur * 60;
+              endTimeRef.current = Date.now() + firstSecDur * 60 * 1000;
+            } else {
+              setTimeRemaining(test.duration || 3600);
+              totalDurationRef.current = test.duration || 3600;
+              endTimeRef.current = Date.now() + (test.duration || 3600) * 1000;
+            }
+            sessionStorage.setItem(`ti_endTime_${testId}`, endTimeRef.current.toString());
           }
         } else {
           setErrorReason(`Test not found for ID: "${testId}"`);
@@ -186,7 +233,8 @@ const TestInterface = () => {
   }, [testDetails]);
 
   const currentSectionIndex = useMemo(() => {
-    return sections.findIndex(s => currentQuestionIdx >= s.startIndex && currentQuestionIdx < s.startIndex + s.count);
+    const idx = sections.findIndex(s => currentQuestionIdx >= s.startIndex && currentQuestionIdx < s.startIndex + s.count);
+    return idx === -1 ? 0 : idx;
   }, [sections, currentQuestionIdx]);
 
   const currentSectionName = sections[currentSectionIndex]?.name || 'Section 1';
@@ -200,12 +248,18 @@ const TestInterface = () => {
   };
 
   // Update viewed status during render
-  if (testDetails && testDetails.questions[currentQuestionIdx]) {
+  if (testDetails && testDetails.questions && testDetails.questions[currentQuestionIdx]) {
     const qId = testDetails.questions[currentQuestionIdx].id;
     if (!viewed[qId]) {
       setViewed(prev => ({ ...prev, [qId]: true }));
     }
   }
+
+  useEffect(() => {
+    if (testDetails && testDetails.questions && currentQuestionIdx >= testDetails.questions.length) {
+      setCurrentQuestionIdx(0);
+    }
+  }, [testDetails, currentQuestionIdx]);
 
   useEffect(() => {
     // Auto-scroll the active pagination button into view
@@ -261,14 +315,24 @@ const TestInterface = () => {
     const candidateEmail = sessionStorage.getItem('candidateEmail') || '';
     const storedViolations = JSON.parse(sessionStorage.getItem('violations') || '[]');
 
-    const res = await saveReport({
-      candidateName,
-      candidateEmail,
-      testId: testId,
-      answers: answers, // Send actual answers to backend for evaluation
-      status: status,
-      violations: storedViolations
-    });
+    let res = null;
+    try {
+      res = await saveReport({
+        candidateName,
+        candidateEmail,
+        testId: testId,
+        answers: answers, // Send actual answers to backend for evaluation
+        status: status,
+        violations: storedViolations
+      });
+    } catch (err) {
+      console.error("Failed to save report to server", err);
+      // Fallback: save locally
+      const fallbackReport = {
+        candidateName, candidateEmail, testId, answers, status, violations: storedViolations, timestamp: Date.now()
+      };
+      sessionStorage.setItem(`ti_fallback_report_${testId}`, JSON.stringify(fallbackReport));
+    }
 
     let percentage = '0.00';
     if (res && res.score) {
@@ -286,17 +350,28 @@ const TestInterface = () => {
       window.globalVideoStream = null;
     }
 
+    // Clear session storage to avoid resuming a completed test
+    sessionStorage.removeItem(`ti_answers_${testId}`);
+    sessionStorage.removeItem(`ti_revisited_${testId}`);
+    sessionStorage.removeItem(`ti_viewed_${testId}`);
+    sessionStorage.removeItem(`ti_currentQuestionIdx_${testId}`);
+    sessionStorage.removeItem(`ti_testDetails_${testId}`);
+    sessionStorage.removeItem(`ti_endTime_${testId}`);
+
+    const completionState = { 
+      score: percentage,
+      candidateName,
+      testDetails,
+      answers,
+      correctAnswers: res?.correctAnswers || {},
+      status,
+      terminationReason
+    };
+    sessionStorage.setItem('last_test_completion_state', JSON.stringify(completionState));
+
     navigate('/completed', { 
       replace: true, 
-      state: { 
-        score: percentage,
-        candidateName: candidateName,
-        testDetails: testDetails,
-        answers: answers,
-        correctAnswers: res?.correctAnswers || {},
-        status: status,
-        terminationReason: terminationReason
-      } 
+      state: completionState
     });
   }, [testDetails, testId, answers, navigate]);
 
@@ -374,6 +449,7 @@ const TestInterface = () => {
             setTimeRemaining(nextSecDur * 60);
             totalDurationRef.current = nextSecDur * 60;
             endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
+            sessionStorage.setItem(`ti_endTime_${testId}`, endTimeRef.current.toString());
           } else {
             handleSubmitExam('Completed', 'Time up');
           }
@@ -458,9 +534,12 @@ const TestInterface = () => {
           break;
         case 'ArrowLeft':
           setCurrentQuestionIdx(prev => {
-            const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
-            const sec = sections[secIdx];
-            return Math.max(sec.startIndex, prev - 1);
+            if (testDetails?.timeMode === 'section') {
+              const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+              const sec = sections[secIdx];
+              return Math.max(sec.startIndex, prev - 1);
+            }
+            return Math.max(0, prev - 1);
           });
           break;
         case '1':
@@ -500,10 +579,10 @@ const TestInterface = () => {
     );
   }
 
-  if (!testDetails) return <div style={{padding: '50px', textAlign: 'center'}}>Loading test environment...</div>;
+  if (!testDetails || !testDetails.questions || testDetails.questions.length === 0) return <div style={{padding: '50px', textAlign: 'center'}}>Loading test environment...</div>;
 
-
-  const currentQ = testDetails.questions[currentQuestionIdx];
+  const safeIdx = currentQuestionIdx >= testDetails.questions.length ? 0 : currentQuestionIdx;
+  const currentQ = testDetails.questions[safeIdx];
   const attemptedCount = Object.keys(answers).length;
   const revisitCount = Object.keys(revisited).filter(k => revisited[k]).length;
   const totalQ = testDetails.questions.length;
@@ -530,28 +609,98 @@ const TestInterface = () => {
   const isLastQuestionOfCurrentSection = currentQuestionIdx === sections[currentSectionIndex].startIndex + sections[currentSectionIndex].count - 1;
   const hasMoreSections = currentSectionIndex < sections.length - 1;
 
-  const isFirstQuestion = isFirstQuestionOfSection;
+  const isFirstQuestion = testDetails?.timeMode === 'section' 
+    ? isFirstQuestionOfSection 
+    : currentQuestionIdx === 0;
+
+  const validateSectionSubmission = (secIndex) => {
+    const sec = sections[secIndex];
+    let secAttempted = 0;
+    for (let i = sec.startIndex; i < sec.startIndex + sec.count; i++) {
+      if (answers[testDetails.questions[i].id] !== undefined) secAttempted++;
+    }
+    
+    if (testDetails.makeAllQuestionsMandatory) {
+      if (secAttempted < sec.count) {
+        window.alert(`All questions in ${sec.name} are mandatory. Please answer all questions before proceeding.`);
+        return false;
+      }
+    }
+    
+    if (testDetails.questionsToBeAttempted && testDetails.questionsToAttemptCount?.[sec.name]) {
+      const requiredCount = parseInt(testDetails.questionsToAttemptCount[sec.name]);
+      if (secAttempted !== requiredCount) {
+         window.alert(`You must answer exactly ${requiredCount} questions in ${sec.name}. You have answered ${secAttempted}.`);
+         return false;
+      }
+    }
+    return true;
+  };
+
+  const handleTrySubmit = () => {
+    let isValid = true;
+    for (let i = 0; i < sections.length; i++) {
+      if (!validateSectionSubmission(i)) {
+        isValid = false;
+        break;
+      }
+    }
+    if (isValid) {
+      setShowFinishPanel(true);
+    }
+  };
+
+  const canNavigateAway = () => {
+    if (testDetails?.minimumQuestionTime && testDetails?.minimumQuestionTimeValue > 0) {
+      const timeSpent = (Date.now() - questionStartTimeRef.current) / 1000;
+      if (timeSpent < testDetails.minimumQuestionTimeValue) {
+        window.alert(`Please spend at least ${testDetails.minimumQuestionTimeValue} seconds on this question.`);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const handleNext = () => {
+    if (!canNavigateAway()) return;
+
     if (isLastQuestionOfTest) {
-      setShowFinishPanel(true);
+      handleTrySubmit();
       return;
     }
     
     if (isLastQuestionOfCurrentSection && hasMoreSections) {
       if (testDetails.timeMode === 'section') {
+        if (!validateSectionSubmission(currentSectionIndex)) return;
         setShowSectionConfirm(true);
       } else {
+        if (testDetails.unidirectional) {
+          if (!validateSectionSubmission(currentSectionIndex)) return;
+        }
         setCurrentQuestionIdx(prev => prev + 1);
       }
     } else {
+      if (testDetails.unidirectional && testDetails.makeAllQuestionsMandatory) {
+        if (answers[testDetails.questions[currentQuestionIdx].id] === undefined) {
+          window.alert(`This question is mandatory.`);
+          return;
+        }
+      }
       setCurrentQuestionIdx(prev => prev + 1);
     }
   };
 
   const handlePrev = () => {
-    if (isFirstQuestion) return;
-    setCurrentQuestionIdx(prev => prev - 1);
+    if (isFirstQuestion || testDetails?.unidirectional) return;
+    if (!canNavigateAway()) return;
+    setCurrentQuestionIdx(prev => {
+      if (testDetails?.timeMode === 'section') {
+        const secIdx = sections.findIndex(s => prev >= s.startIndex && prev < s.startIndex + s.count);
+        const sec = sections[secIdx];
+        return Math.max(sec.startIndex, prev - 1);
+      }
+      return Math.max(0, prev - 1);
+    });
   };
 
   const confirmNextSection = () => {
@@ -562,6 +711,7 @@ const TestInterface = () => {
     setTimeRemaining(nextSecDur * 60);
     totalDurationRef.current = nextSecDur * 60;
     endTimeRef.current = Date.now() + nextSecDur * 60 * 1000;
+    sessionStorage.setItem(`ti_endTime_${testId}`, endTimeRef.current.toString());
   };
 
   return (
@@ -673,7 +823,7 @@ const TestInterface = () => {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <button 
-              onClick={() => setShowFinishPanel(true)} 
+              onClick={handleTrySubmit} 
               className="ti-finish-btn"
               style={{ 
                 display: 'flex', 
@@ -718,7 +868,7 @@ const TestInterface = () => {
                   }
                   const percentage = Math.round((answered / s.count) * 100);
                   const isActive = currentSectionName === s.name;
-                  const isLocked = (testDetails.timeMode === 'section' && !isActive) || idx < currentSectionIndex;
+                  const isLocked = (testDetails.timeMode === 'section' && !isActive) || (testDetails.unidirectional && !isActive);
 
                   return (
                     <button 
@@ -736,6 +886,7 @@ const TestInterface = () => {
                       }}
                       onClick={() => {
                         if (isLocked) return;
+                        if (!canNavigateAway()) return;
                         setCurrentQuestionIdx(s.startIndex);
                         setShowSectionDropdown(false);
                       }}
@@ -802,7 +953,7 @@ const TestInterface = () => {
         <div className="ti-nav-center-wrapper" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', overflow: 'visible', padding: '0 20px', minWidth: 0 }}>
           
           <div className="ti-nav-center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', minWidth: 0 }}>
-            <button type="button" className="ti-page-btn flex-center" disabled={isFirstQuestion} onClick={handlePrev}>
+            <button type="button" className="ti-page-btn flex-center" disabled={isFirstQuestion || testDetails?.unidirectional} onClick={handlePrev}>
               <ChevronLeft size={16} />
             </button>
 
@@ -820,7 +971,12 @@ const TestInterface = () => {
                     type="button"
                     key={q.id} 
                     className={`ti-page-num ${statusClass} ${currentQuestionIdx === idx ? 'active' : ''}`}
-                    onClick={() => setCurrentQuestionIdx(idx)}
+                    onClick={() => {
+                      if (testDetails?.unidirectional && idx !== currentQuestionIdx) return;
+                      if (idx !== currentQuestionIdx && !canNavigateAway()) return;
+                      setCurrentQuestionIdx(idx);
+                    }}
+                    style={{ cursor: (testDetails?.unidirectional && idx !== currentQuestionIdx) ? 'not-allowed' : 'pointer' }}
                   >
                     {i + 1}
                   </button>
@@ -892,6 +1048,8 @@ const TestInterface = () => {
                         key={q.id} 
                         className={`ti-page-num ${statusClass} ${currentQuestionIdx === originalIndex ? 'active' : ''}`}
                         onClick={() => {
+                          if (testDetails?.unidirectional && originalIndex !== currentQuestionIdx) return;
+                          if (originalIndex !== currentQuestionIdx && !canNavigateAway()) return;
                           setCurrentQuestionIdx(originalIndex);
                           setShowFilterDropdown(false);
                         }}
@@ -903,7 +1061,7 @@ const TestInterface = () => {
                           justifyContent: 'center', 
                           borderRadius: '8px', 
                           fontSize: '16px',
-                          cursor: 'pointer',
+                          cursor: (testDetails?.unidirectional && originalIndex !== currentQuestionIdx) ? 'not-allowed' : 'pointer',
                         }}
                       >
                         {originalIndex - sections[currentSectionIndex].startIndex + 1}
@@ -924,11 +1082,11 @@ const TestInterface = () => {
           
         <div className="ti-nav-right-wrapper" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{ display: 'flex', border: '1px solid #1e3a8a', borderRadius: '4px', overflow: 'hidden' }}>
-            <button type="button" className="ti-btn-outline" style={{ border: 'none', borderRight: '1px solid #1e3a8a', color: '#1e3a8a', background: 'white', padding: '6px 16px', borderRadius: 0, fontSize: '13px' }} disabled={isFirstQuestion} onClick={handlePrev}>
+            <button type="button" className="ti-btn-outline" style={{ border: 'none', borderRight: '1px solid #1e3a8a', color: '#1e3a8a', background: 'white', padding: '6px 16px', borderRadius: 0, fontSize: '13px' }} disabled={isFirstQuestion || testDetails?.unidirectional} onClick={handlePrev}>
               Previous
             </button>
             {isLastQuestionOfTest ? (
-              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={() => setShowFinishPanel(true)}>Submit Test</button>
+              <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={handleTrySubmit}>Submit Test</button>
             ) : isLastQuestionOfCurrentSection && hasMoreSections ? (
               <button type="button" className="ti-btn-next" style={{ color: '#1e3a8a', background: 'white', border: 'none', padding: '6px 20px', borderRadius: 0, fontSize: '13px' }} onClick={handleNext}>{testDetails.timeMode === 'section' ? 'Next Section' : 'Next'}</button>
             ) : (
@@ -969,7 +1127,7 @@ const TestInterface = () => {
         <button 
           type="button"
           className="ti-float-arrow left" 
-          disabled={isFirstQuestion}
+          disabled={isFirstQuestion || testDetails?.unidirectional}
           onClick={handlePrev}
         >
           <ChevronLeft size={20} />
@@ -997,7 +1155,13 @@ const TestInterface = () => {
             </div>
             {testDetails.showMarksInTest !== false && (
               <div style={{ background: '#f1f5f9', color: '#475569', fontSize: '12px', padding: '4px 10px', borderRadius: '4px', fontWeight: '500' }}>
-                Marks: 1
+                Marks: {(() => {
+                  const pos = testDetails.sectionScoring?.[currentSectionName]?.positive !== undefined ? testDetails.sectionScoring[currentSectionName].positive : (currentQ.points || 1);
+                  const neg = testDetails.sectionScoring?.[currentSectionName]?.negative !== undefined ? testDetails.sectionScoring[currentSectionName].negative : 0;
+                  if (neg < 0) return `+${pos} | ${neg}`;
+                  if (neg > 0) return `+${pos} | -${neg}`;
+                  return pos;
+                })()}
               </div>
             )}
           </div>

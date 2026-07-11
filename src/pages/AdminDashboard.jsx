@@ -43,8 +43,9 @@ const AdminDashboard = () => {
   const [showMultipleQuestionsPerPage, setShowMultipleQuestionsPerPage] = useState(false);
   const [unidirectional, setUnidirectional] = useState(false);
   const [minimumQuestionTime, setMinimumQuestionTime] = useState(false);
+  const [minimumQuestionTimeValue, setMinimumQuestionTimeValue] = useState(0);
   const [questionsToBeAttempted, setQuestionsToBeAttempted] = useState(false);
-  const [questionsToAttemptCount, setQuestionsToAttemptCount] = useState('');
+  const [questionsToAttemptCount, setQuestionsToAttemptCount] = useState({});
   const [questions, setQuestions] = useState([]);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
   const [currentSectionName, setCurrentSectionName] = useState('Section 1');
@@ -95,10 +96,10 @@ const AdminDashboard = () => {
     }
     
     const updated = [...questions];
-    newParsed.forEach(q => {
+    newParsed.forEach((q, idx) => {
       updated.push({
         ...q,
-        id: updated.length + 1,
+        id: Date.now() + idx,
         sectionName: currentSectionName
       });
     });
@@ -124,8 +125,6 @@ const AdminDashboard = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    fetchDashboardData();
-    
     // Auto-refresh when tab gains focus
     window.addEventListener('focus', fetchDashboardData);
     
@@ -196,6 +195,14 @@ const AdminDashboard = () => {
     setWatermark(t.watermark ?? true);
     setAllowCopyPaste(t.allowCopyPaste || false);
     setDisconnectionDuration(t.disconnectionDuration || '5');
+    setUnidirectional(t.unidirectional || false);
+    setMakeAllQuestionsMandatory(t.makeAllQuestionsMandatory || false);
+    setShowMultipleQuestionsPerPage(t.showMultipleQuestionsPerPage || false);
+    setMinimumQuestionTime(t.minimumQuestionTime || false);
+    setMinimumQuestionTimeValue(t.minimumQuestionTimeValue || 0);
+    setQuestionsToBeAttempted(t.questionsToBeAttempted || false);
+    setQuestionsToAttemptCount(t.questionsToAttemptCount || {});
+    setSectionScoring(t.sectionScoring || {});
     
     if (t.registrationFields && t.registrationFields.length > 0) {
       setRegistrationFields(t.registrationFields);
@@ -241,6 +248,14 @@ const AdminDashboard = () => {
     setWatermark(true);
     setAllowCopyPaste(false);
     setDisconnectionDuration('5');
+    setUnidirectional(false);
+    setMakeAllQuestionsMandatory(false);
+    setShowMultipleQuestionsPerPage(false);
+    setMinimumQuestionTime(false);
+    setMinimumQuestionTimeValue(0);
+    setQuestionsToBeAttempted(false);
+    setQuestionsToAttemptCount({});
+    setSectionScoring({});
     setRegistrationFields([
       { id: 'email', name: 'Email Address', isEnabled: true },
       { id: 'firstName', name: 'First Name', isEnabled: true },
@@ -261,11 +276,11 @@ const AdminDashboard = () => {
     e.preventDefault();
     if (editingQuestionIndex !== null) {
       const updated = [...questions];
-      updated[editingQuestionIndex] = { ...currentQuestion, sectionName: currentSectionName };
+      updated[editingQuestionIndex] = { ...currentQuestion, id: questions[editingQuestionIndex].id, sectionName: currentSectionName };
       setQuestions(updated);
       setEditingQuestionIndex(null);
     } else {
-      setQuestions([...questions, { ...currentQuestion, id: questions.length + 1, sectionName: currentSectionName }]);
+      setQuestions([...questions, { ...currentQuestion, id: Date.now(), sectionName: currentSectionName }]);
     }
     setCurrentQuestion({ text: '', type: 'single', options: ['', '', '', ''], correctOption: 0, correctOptions: [0] });
   };
@@ -296,6 +311,7 @@ const AdminDashboard = () => {
     }
     if (questions.length === 0) {
       alert('Please provide at least one question for the quiz.');
+      setBuilderStep('step-2');
       return;
     }
     
@@ -307,7 +323,7 @@ const AdminDashboard = () => {
 
     const calculatedDuration = timeMode === 'section' 
       ? Object.values(cleanedSectionDurations).reduce((acc, curr) => acc + curr, 0) * 60
-      : parseInt(newTestDuration, 10) * 60;
+      : (parseInt(newTestDuration, 10) || 15) * 60;
 
     const newTest = {
       id: editingTestId || ('test-' + Math.random().toString(36).substr(2, 9)),
@@ -321,7 +337,7 @@ const AdminDashboard = () => {
       requireScreenShare: newTestRequireScreenShare,
       requireSEB: newTestRequireSEB,
       browsingToleranceMode,
-      browsingToleranceCount: browsingToleranceMode === 'custom' ? browsingToleranceCount : null,
+      browsingToleranceCount: browsingToleranceMode === 'custom' ? (parseInt(browsingToleranceCount, 10) || 1) : null,
       shuffleQuestions,
       shuffleOptions,
       moduleType: 'quiz',
@@ -336,9 +352,17 @@ const AdminDashboard = () => {
       showMarksInTest,
       watermark,
       allowCopyPaste,
-      disconnectionDuration,
+      disconnectionDuration: parseInt(disconnectionDuration, 10) >= 0 ? parseInt(disconnectionDuration, 10) : 5,
       registrationFields,
-      type: newTestType
+      type: newTestType,
+      unidirectional,
+      makeAllQuestionsMandatory,
+      showMultipleQuestionsPerPage,
+      minimumQuestionTime,
+      minimumQuestionTimeValue,
+      questionsToBeAttempted,
+      questionsToAttemptCount,
+      sectionScoring
     };
     
 
@@ -361,6 +385,32 @@ const AdminDashboard = () => {
             setNewTestRequireSEB(true);
             setBrowsingToleranceMode('custom');
             setBrowsingToleranceCount(3);
+            setShuffleQuestions(false);
+            setShuffleOptions(false);
+            setUnidirectional(false);
+            setMakeAllQuestionsMandatory(false);
+            setShowMultipleQuestionsPerPage(false);
+            setMinimumQuestionTime(false);
+            setMinimumQuestionTimeValue(0);
+            setQuestionsToBeAttempted(false);
+            setQuestionsToAttemptCount({});
+            setSectionScoring({});
+            setTestLanguage('English');
+            setTestUseCase('');
+            setTestInstructions('');
+            setPageRedirect('');
+            setCompensatoryTime(false);
+            setFixedSectionOrder(true);
+            setUploadAnswerImages(false);
+            setShowMarksInTest(true);
+            setWatermark(true);
+            setAllowCopyPaste(false);
+            setDisconnectionDuration('5');
+            setRegistrationFields([
+              { id: 'email', name: 'Email Address', isEnabled: true },
+              { id: 'firstName', name: 'First Name', isEnabled: true },
+              { id: 'lastName', name: 'Last Name', isEnabled: false }
+            ]);
             setQuestions([]);
             alert('Test updated successfully!');
             setActiveTab('tests');
@@ -391,6 +441,32 @@ const AdminDashboard = () => {
         setNewTestRequireSEB(true);
         setBrowsingToleranceMode('custom');
         setBrowsingToleranceCount(3);
+        setShuffleQuestions(false);
+        setShuffleOptions(false);
+        setUnidirectional(false);
+        setMakeAllQuestionsMandatory(false);
+        setShowMultipleQuestionsPerPage(false);
+        setMinimumQuestionTime(false);
+        setMinimumQuestionTimeValue(0);
+        setQuestionsToBeAttempted(false);
+        setQuestionsToAttemptCount({});
+        setSectionScoring({});
+        setTestLanguage('English');
+        setTestUseCase('');
+        setTestInstructions('');
+        setPageRedirect('');
+        setCompensatoryTime(false);
+        setFixedSectionOrder(true);
+        setUploadAnswerImages(false);
+        setShowMarksInTest(true);
+        setWatermark(true);
+        setAllowCopyPaste(false);
+        setDisconnectionDuration('5');
+        setRegistrationFields([
+          { id: 'email', name: 'Email Address', isEnabled: true },
+          { id: 'firstName', name: 'First Name', isEnabled: true },
+          { id: 'lastName', name: 'Last Name', isEnabled: false }
+        ]);
         setQuestions([]);
         alert('Test created successfully!');
         setActiveTab('tests');
@@ -1437,7 +1513,7 @@ const AdminDashboard = () => {
                               <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Stop the test after a certain duration of internet disconnection.</p>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <input type="number" className="modern-input" value={disconnectionDuration} onChange={e => setDisconnectionDuration(e.target.value)} style={{ width: '80px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '4px' }} min="1" max="60" />
+                              <input type="number" className="modern-input" value={disconnectionDuration} onChange={e => setDisconnectionDuration(e.target.value)} style={{ width: '80px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '4px' }} min="0" max="60" />
                               <span style={{ fontSize: '0.9rem', color: '#64748b' }}>mins</span>
                             </div>
                           </div>
@@ -1454,7 +1530,7 @@ const AdminDashboard = () => {
                                 <option value="lenient">Lenient (Warn only, do not submit)</option>
                               </select>
                               {browsingToleranceMode === 'custom' && (
-                                <input type="number" min="1" max="10" className="modern-input" value={browsingToleranceCount} onChange={e => setBrowsingToleranceCount(parseInt(e.target.value))} style={{ width: '80px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '4px' }} title="Warnings allowed" />
+                                <input type="number" min="1" max="10" className="modern-input" value={browsingToleranceCount} onChange={e => setBrowsingToleranceCount(e.target.value)} style={{ width: '80px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '4px' }} title="Warnings allowed" />
                               )}
                             </div>
                           </div>
@@ -1579,7 +1655,13 @@ const AdminDashboard = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
-                      <input type="checkbox" checked={makeAllQuestionsMandatory} onChange={e => setMakeAllQuestionsMandatory(e.target.checked)} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
+                      <input type="checkbox" checked={makeAllQuestionsMandatory} onChange={e => {
+                        if (e.target.checked && questionsToBeAttempted) {
+                          alert('Cannot make all questions mandatory while Questions to be Attempted is active.');
+                          return;
+                        }
+                        setMakeAllQuestionsMandatory(e.target.checked);
+                      }} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
                       <div>
                         <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>Make All Questions Mandatory</div>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>Allow the setting to make all the questions mandatory</div>
@@ -1603,51 +1685,62 @@ const AdminDashboard = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
-                      <input type="checkbox" checked={showMultipleQuestionsPerPage} onChange={e => setShowMultipleQuestionsPerPage(e.target.checked)} disabled={unidirectional} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
-                      <div>
-                        <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>Show Multiple Questions Per Page ⓘ</div>
-                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>By default, the view is set to display one question per page. Select this option to view multiple questions on a single screen in a scrollable format.</div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
                       <input type="checkbox" checked={unidirectional} onChange={e => {
+                        if (e.target.checked && questionsToBeAttempted) {
+                          alert('Cannot enable Unidirectional mode while Questions to be Attempted is active.');
+                          return;
+                        }
                         setUnidirectional(e.target.checked);
-                        if (e.target.checked) setShowMultipleQuestionsPerPage(false);
                       }} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
                       <div>
                         <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>Unidirectional ⓘ</div>
-                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>On selecting this option, the candidate will be attempting all the questions in one go by moving forward towards the next question or section. Candidate wouldn't be able to move to the previous question.<br/>Show multiple questions per page settings will be disabled by default for unidirectional section.</div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>On selecting this option, the candidate will be attempting all the questions in one go by moving forward towards the next question or section. Candidate wouldn't be able to move to the previous question.</div>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
                       <input type="checkbox" checked={minimumQuestionTime} onChange={e => setMinimumQuestionTime(e.target.checked)} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
-                      <div>
+                      <div style={{ width: '100%' }}>
                         <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>Minimum Question Time</div>
-                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>Allow setting to give minimum question time</div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px', marginBottom: minimumQuestionTime ? '16px' : '0' }}>Allow setting to give minimum question time</div>
+                        {minimumQuestionTime && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <input type="number" min="0" value={minimumQuestionTimeValue} onChange={e => setMinimumQuestionTimeValue(parseInt(e.target.value) || 0)} style={{ width: '80px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'center' }} />
+                            <span style={{ fontSize: '0.9rem', color: '#334155' }}>Seconds per question</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '8px' }}>
-                      <input type="checkbox" checked={questionsToBeAttempted} onChange={e => setQuestionsToBeAttempted(e.target.checked)} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
+                      <input type="checkbox" checked={questionsToBeAttempted} onChange={e => {
+                        if (e.target.checked && unidirectional) {
+                          alert('Cannot enable this setting while Unidirectional mode is active.');
+                          return;
+                        }
+                        if (e.target.checked && makeAllQuestionsMandatory) {
+                          alert('Cannot enable this setting while Make All Questions Mandatory is active.');
+                          return;
+                        }
+                        setQuestionsToBeAttempted(e.target.checked);
+                      }} style={{ marginTop: '4px', width: '16px', height: '16px' }} />
                       <div style={{ width: '100%' }}>
                         <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>Questions to be Attempted ⓘ</div>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px', marginBottom: '16px' }}>This setting allows one to set the number of questions that needs to be attempted.</div>
                         
                         {questionsToBeAttempted && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <input type="number" min="1" max={questions.filter(q => (q.sectionName || 'Section 1') === currentSettingsSection).length} value={questionsToAttemptCount} onChange={e => {
+                            <input type="number" min="1" max={questions.filter(q => (q.sectionName || 'Section 1') === currentSettingsSection).length} value={questionsToAttemptCount[currentSettingsSection] || ''} onChange={e => {
                               const maxQ = questions.filter(q => (q.sectionName || 'Section 1') === currentSettingsSection).length;
                               let val = parseInt(e.target.value);
                               if (isNaN(val)) {
-                                setQuestionsToAttemptCount('');
+                                setQuestionsToAttemptCount(prev => ({...prev, [currentSettingsSection]: ''}));
                               } else if (val > maxQ) {
-                                setQuestionsToAttemptCount(maxQ);
+                                setQuestionsToAttemptCount(prev => ({...prev, [currentSettingsSection]: maxQ}));
                               } else if (val < 1) {
-                                setQuestionsToAttemptCount(1);
+                                setQuestionsToAttemptCount(prev => ({...prev, [currentSettingsSection]: 1}));
                               } else {
-                                setQuestionsToAttemptCount(val);
+                                setQuestionsToAttemptCount(prev => ({...prev, [currentSettingsSection]: val}));
                               }
                             }} placeholder="4" style={{ width: '60px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'center' }} />
                             <span style={{ fontSize: '0.9rem', color: '#334155' }}>Out of {questions.filter(q => (q.sectionName || 'Section 1') === currentSettingsSection).length} Questions</span>
@@ -1761,7 +1854,7 @@ const parsePastedQuestions = (rawText) => {
   });
 
   if (segments.length <= 1) {
-    const matches = normalized.split(/(?=\n\d+[.)]\s)|^(?=\d+[.)]\s)/).map(s => s.trim()).filter(Boolean);
+    const matches = normalized.split(/(?=\n(?:Q(?:uestion)?\s*)?\d+[.)]\s)|^(?:Q(?:uestion)?\s*)?\d+[.)]\s/i).map(s => s.trim()).filter(Boolean);
     if (matches.length > 1) {
       segments = matches;
     }
@@ -1810,26 +1903,28 @@ const parsePastedQuestions = (rawText) => {
       questionText = questionLines.join(' ').replace(/^\d+[.)]\s*/, '');
       options = possibleOptions.slice(0, 4).map(o => o.text);
 
-      let ansIndices = [];
+      let ansIndices = new Set();
       if (answerVal) {
         let cleanAns = answerVal.replace(/^(?:OPTION|CHOICE|ANSWERS?)\s*/i, '').replace(/and/gi, ',').trim();
-        const parts = cleanAns.split(/[,\s]+/).filter(Boolean);
-        parts.forEach(part => {
-          if (['A', 'B', 'C', 'D'].includes(part)) ansIndices.push(['A', 'B', 'C', 'D'].indexOf(part));
-          else if (['1', '2', '3', '4'].includes(part)) ansIndices.push(parseInt(part, 10) - 1);
-          else {
-            const matchedOpt = options.findIndex(opt => opt.toLowerCase() === part.toLowerCase());
-            if (matchedOpt !== -1) ansIndices.push(matchedOpt);
-            else {
-              const matchedOptClean = options.findIndex(opt => opt.toLowerCase() === cleanAns.toLowerCase());
-              if (matchedOptClean !== -1) ansIndices.push(matchedOptClean);
-            }
-          }
-        });
-        if (ansIndices.length > 1) type = 'multiple';
+        const exactMatchIdx = options.findIndex(opt => opt.toLowerCase() === cleanAns.toLowerCase());
+        
+        if (exactMatchIdx !== -1) {
+            ansIndices.add(exactMatchIdx);
+        } else {
+            const parts = cleanAns.split(/[,\s]+/).filter(Boolean);
+            parts.forEach(part => {
+              if (['A', 'B', 'C', 'D'].includes(part)) ansIndices.add(['A', 'B', 'C', 'D'].indexOf(part));
+              else if (['1', '2', '3', '4'].includes(part)) ansIndices.add(parseInt(part, 10) - 1);
+              else {
+                const matchedOpt = options.findIndex(opt => opt.toLowerCase() === part.toLowerCase());
+                if (matchedOpt !== -1) ansIndices.add(matchedOpt);
+              }
+            });
+        }
+        if (ansIndices.size > 1) type = 'multiple';
       }
-      correctOption = ansIndices.length > 0 ? ansIndices[0] : 0;
-      correctOptions = ansIndices.length > 0 ? ansIndices : [0];
+      correctOption = ansIndices.size > 0 ? Array.from(ansIndices)[0] : 0;
+      correctOptions = ansIndices.size > 0 ? Array.from(ansIndices) : [0];
     }
 
     if (questionText && options.length >= 2) {

@@ -89,28 +89,42 @@ function initInMemoryDb() {
 }
 
 // Connect to MongoDB
-const dbInitPromise = mongoose.connect(MONGODB_URI)
-  .then(() => {
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    isConnected = true;
+    useInMemoryDb = false; // Ensure fallback is off if connected
     console.log('✅ Successfully connected to MongoDB.');
     seedDatabase();
-  })
-  .catch(err => {
+  } catch (err) {
     console.error('❌ Error connecting to MongoDB:', err.message);
     console.log('👉 Resolving: DNS lookup or network restrictions blocked MongoDB Atlas. Activating robust in-memory database fallback...');
-    initInMemoryDb();
-  });
+    if (!useInMemoryDb) initInMemoryDb();
+  }
+};
 
 // Wait for DB or Fallback initialization before processing API requests
 app.use(async (req, res, next) => {
   if (req.path.startsWith('/api')) {
-    await dbInitPromise;
+    await connectDB();
   }
   next();
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('⚠️ MongoDB connection lost. Automatically switching to in-memory fallback mode.');
-  if (!useInMemoryDb) initInMemoryDb();
+  console.warn('⚠️ MongoDB connection lost.');
+  isConnected = false; // Reset so next request attempts to reconnect instead of falling back permanently
 });
 
 mongoose.connection.on('error', (err) => {
@@ -125,6 +139,8 @@ const questionSchema = new mongoose.Schema({
   text: { type: String, required: true },
   options: [{ type: String, required: true }],
   correctOption: { type: Number, required: true },
+  type: { type: String, default: 'single' },
+  correctOptions: [{ type: Number }],
   sectionName: { type: String }
 });
 
@@ -153,10 +169,20 @@ const testSchema = new mongoose.Schema({
   fixedSectionOrder: { type: Boolean, default: true },
   uploadAnswerImages: { type: Boolean, default: false },
   showMarksInTest: { type: Boolean, default: true },
-  watermark: { type: Boolean, default: false },
+  watermark: { type: Boolean, default: true },
   allowCopyPaste: { type: Boolean, default: false },
   disconnectionDuration: { type: Number, default: 5 },
-  registrationFields: { type: Array, default: [] }
+  requireScreenShare: { type: Boolean, default: false },
+  type: { type: String, default: '' },
+  registrationFields: { type: Array, default: [] },
+  unidirectional: { type: Boolean, default: false },
+  makeAllQuestionsMandatory: { type: Boolean, default: false },
+  showMultipleQuestionsPerPage: { type: Boolean, default: false },
+  minimumQuestionTime: { type: Boolean, default: false },
+  questionsToBeAttempted: { type: Boolean, default: false },
+  questionsToAttemptCount: { type: Object, default: {} },
+  minimumQuestionTimeValue: { type: Number, default: 0 },
+  sectionScoring: { type: Object, default: {} }
 }, { timestamps: true });
 
 const Test = mongoose.model('Test', testSchema);
@@ -237,6 +263,7 @@ app.get('/api/tests/:id', async (req, res) => {
     if (sanitizedTest.questions) {
       sanitizedTest.questions.forEach(q => {
         delete q.correctOption;
+        delete q.correctOptions;
       });
     }
     return res.json(sanitizedTest);
@@ -251,6 +278,7 @@ app.get('/api/tests/:id', async (req, res) => {
     if (test.questions) {
       test.questions.forEach(q => {
         delete q.correctOption;
+        delete q.correctOptions;
       });
     }
     res.json(test);
@@ -381,6 +409,8 @@ app.post('/api/reports', async (req, res) => {
     let totalQuestions = 0;
     let incorrectQuestionsText = [];
     let correctAnswers = {};
+    let actualScore = 0;
+    let maxScore = 0;
     
     let test;
     if (useInMemoryDb) {
@@ -392,28 +422,46 @@ app.post('/api/reports', async (req, res) => {
     if (test && test.questions) {
       totalQuestions = test.questions.length;
       test.questions.forEach(q => {
+        const qIdStr = String(q.id);
+        const secName = q.sectionName || 'Section 1';
+        const pScore = test.sectionScoring?.[secName]?.positive !== undefined ? test.sectionScoring[secName].positive : (q.points || 1);
+        let nScore = test.sectionScoring?.[secName]?.negative !== undefined ? test.sectionScoring[secName].negative : 0;
+        if (nScore > 0) nScore = -nScore; // Enforce subtraction
+        
+        maxScore += pScore;
+        
+        let isCorrect = false;
+        let isAttempted = answers[qIdStr] !== undefined;
+
         if (q.type === 'multiple') {
           const correctTexts = (q.correctOptions || []).map(idx => q.options[idx]).sort();
-          correctAnswers[q.id] = correctTexts;
-          const studentAns = Array.isArray(answers[q.id]) ? [...answers[q.id]].sort() : [];
-          if (JSON.stringify(correctTexts) === JSON.stringify(studentAns)) {
-            correctCount++;
-          } else {
+          correctAnswers[qIdStr] = correctTexts;
+          const studentAns = Array.isArray(answers[qIdStr]) ? [...answers[qIdStr]].sort() : [];
+          if (isAttempted && JSON.stringify(correctTexts) === JSON.stringify(studentAns)) {
+            isCorrect = true;
+          } else if (isAttempted) {
             incorrectQuestionsText.push(q.text);
           }
         } else {
           const correctText = q.options[q.correctOption];
-          correctAnswers[q.id] = correctText;
-          if (answers[q.id] === correctText) {
-            correctCount++;
-          } else {
+          correctAnswers[qIdStr] = correctText;
+          if (isAttempted && answers[qIdStr] === correctText) {
+            isCorrect = true;
+          } else if (isAttempted) {
             incorrectQuestionsText.push(q.text);
           }
+        }
+
+        if (isCorrect) {
+          actualScore += pScore;
+          correctCount++;
+        } else if (isAttempted) {
+          actualScore += nScore;
         }
       });
     }
 
-    const score = `${correctCount}/${totalQuestions}`;
+    const score = `${actualScore}/${maxScore}`;
 
     // Generate AI Recommendation
     let aiRecommendation = status === 'Terminated' 

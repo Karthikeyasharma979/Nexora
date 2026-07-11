@@ -21,7 +21,7 @@ const ResultPage = () => {
         setReport(data);
       } catch (err) {
         console.error(err);
-        setError('Unable to load test results.');
+        setError('Report not found or expired.');
       } finally {
         setLoading(false);
       }

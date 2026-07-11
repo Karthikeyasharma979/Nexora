@@ -73,7 +73,7 @@ const KioskLogin = () => {
     // Network Check
     if (navigator.onLine) {
       try {
-        const res = await fetch(`${API_URL}/tests`, { method: 'GET' });
+        const res = await fetch(`${API_URL.replace('/api', '')}/`, { method: 'GET' });
         if (res.ok) {
           setSystemChecks(prev => ({ ...prev, network: { status: 'ok', value: 'Ping Excellent' } }));
         } else {

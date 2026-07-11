@@ -80,7 +80,7 @@ export const saveReport = async (reportData) => {
     return await response.json();
   } catch (error) {
     console.error("Error saving report:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -216,8 +216,8 @@ export const generateInviteLink = async (testId, candidateEmail) => {
     return await response.json();
   } catch (error) {
     console.error("Error generating invite from backend:", error);
-    // Fallback to local offline token
-    const fallbackToken = btoa(JSON.stringify({ testId, candidateEmail, type: 'invite' }));
+    // Fallback to raw testId for offline kiosk login
+    const fallbackToken = testId;
     return { token: fallbackToken, link: `nexora://invite/${fallbackToken}` };
   }
 };
