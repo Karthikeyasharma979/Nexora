@@ -526,7 +526,9 @@ app.post('/api/reports', async (req, res) => {
 // Helper for sending result email
 async function sendResultEmail(email, name, reportId, testName, score, aiRecommendation, origin) {
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use STARTTLS instead of implicit TLS
     auth: {
       user: process.env.EMAIL_USERNAME,
       pass: process.env.EMAIL_PASSWORD
@@ -724,7 +726,9 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
 
     // Setup Nodemailer transporter
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // Use STARTTLS instead of implicit TLS
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD
