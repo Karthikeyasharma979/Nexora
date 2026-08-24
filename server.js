@@ -51,6 +51,7 @@ const authenticateAdmin = (req, res, next) => {
 let useInMemoryDb = false;
 let inMemoryTests = [];
 let inMemoryReports = [];
+let inMemoryInvites = [];
 
 // Seed data template
 const SEED_DATA = [
@@ -141,7 +142,8 @@ const questionSchema = new mongoose.Schema({
   correctOption: { type: Number, required: true },
   type: { type: String, default: 'single' },
   correctOptions: [{ type: Number }],
-  sectionName: { type: String }
+  sectionName: { type: String },
+  referenceImage: { type: String }
 });
 
 const testSchema = new mongoose.Schema({
@@ -194,7 +196,10 @@ const reportSchema = new mongoose.Schema({
   score: { type: String, required: true },
   status: { type: String, required: true },
   violations: { type: Array, default: [] },
-  aiRecommendation: { type: String }
+  aiRecommendation: { type: String },
+  answers: { type: Object, default: {} },
+  correctAnswers: { type: Object, default: {} },
+  questions: { type: Array, default: [] }
 }, { timestamps: true });
 
 const Report = mongoose.model('Report', reportSchema);
@@ -209,6 +214,15 @@ const demoRequestSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const DemoRequest = mongoose.model('DemoRequest', demoRequestSchema);
+
+const inviteSchema = new mongoose.Schema({
+  token: { type: String, required: true, unique: true },
+  testId: { type: String, required: true },
+  candidateEmail: { type: String },
+  used: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const Invite = mongoose.model('Invite', inviteSchema);
 
 // In-memory fallback for demo requests
 let inMemoryDemoRequests = [];
@@ -494,7 +508,19 @@ app.post('/api/reports', async (req, res) => {
       }
     }
 
-    const newReportData = { candidateName, candidateEmail, testId, score, status, violations: violations || [], aiRecommendation };
+    const newReportData = { candidateName, candidateEmail, testId, score, status, violations: violations || [], aiRecommendation, answers, correctAnswers, questions: test ? test.questions : [] };
+
+    // Mark any invite for this email and test as used
+    if (useInMemoryDb) {
+      const invite = inMemoryInvites.find(i => i.candidateEmail === candidateEmail && i.testId === testId && !i.used);
+      if (invite) invite.used = true;
+    } else {
+      try {
+        await Invite.updateMany({ candidateEmail, testId, used: false }, { used: true });
+      } catch (err) {
+        console.error("Failed to mark invite as used:", err);
+      }
+    }
 
     if (useInMemoryDb) {
       const savedReport = { ...newReportData, _id: Date.now().toString(), createdAt: new Date().toISOString() };
@@ -654,7 +680,7 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // Generate Secure Invite (Admin Only)
-app.post('/api/invite/generate', authenticateAdmin, (req, res) => {
+app.post('/api/invite/generate', authenticateAdmin, async (req, res) => {
   const { testId, candidateEmail } = req.body;
   if (!testId) return res.status(400).json({ error: 'testId is required' });
 
@@ -663,6 +689,16 @@ app.post('/api/invite/generate', authenticateAdmin, (req, res) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' } // Link valid for 7 days
   );
+  
+  if (useInMemoryDb) {
+    inMemoryInvites.push({ token, testId, candidateEmail, used: false });
+  } else {
+    try {
+      await new Invite({ token, testId, candidateEmail, used: false }).save();
+    } catch (e) {
+      console.error("Error saving invite to DB:", e);
+    }
+  }
   
   res.json({ token, link: `nexora://invite/${token}` });
 });
@@ -680,6 +716,20 @@ app.get('/api/invite/verify/:token', async (req, res) => {
     
     if (decoded.type !== 'invite') {
       return res.status(400).json({ error: 'Invalid token type' });
+    }
+
+    // 1b. Check if invite is used
+    let isUsed = false;
+    if (useInMemoryDb) {
+      const invite = inMemoryInvites.find(i => i.token === token);
+      if (invite && invite.used) isUsed = true;
+    } else {
+      const invite = await Invite.findOne({ token });
+      if (invite && invite.used) isUsed = true;
+    }
+
+    if (isUsed) {
+      return res.status(403).json({ error: 'This invite link has already been used to take the test.' });
     }
 
     // 2. Fetch the test to check if requireSEB is enabled
@@ -720,6 +770,17 @@ app.post('/api/invite/send-email', authenticateAdmin, async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+    
+    if (useInMemoryDb) {
+      inMemoryInvites.push({ token, testId, candidateEmail, used: false });
+    } else {
+      try {
+        await new Invite({ token, testId, candidateEmail, used: false }).save();
+      } catch (e) {
+        console.error("Error saving invite to DB:", e);
+      }
+    }
+
     const secureLink = `nexora://invite/${token}`;
     const frontendUrl = origin || process.env.FRONTEND_URL || 'http://localhost:5173';
     const fallbackLink = `${frontendUrl}/#/invite/${token}`;

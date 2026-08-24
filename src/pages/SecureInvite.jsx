@@ -115,21 +115,99 @@ const SecureInvite = () => {
 
   if (verifying) {
     return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f4f8' }}>
-        <Loader2 className="lucide-spin" size={50} color="#0056b3" style={{ animation: 'spin 2s linear infinite' }} />
-        <h2 style={{ marginTop: '20px', color: '#333' }}>Verifying Secure Link...</h2>
-        <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+        <style>
+          {`
+            @keyframes pulseShadow {
+              0% { box-shadow: 0 0 0 0 rgba(0, 180, 216, 0.3); }
+              70% { box-shadow: 0 0 0 20px rgba(0, 180, 216, 0); }
+              100% { box-shadow: 0 0 0 0 rgba(0, 180, 216, 0); }
+            }
+          `}
+        </style>
+        <div style={{
+          width: '90px',
+          height: '90px',
+          backgroundColor: 'white',
+          borderRadius: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+          animation: 'pulseShadow 2s infinite',
+          marginBottom: '28px'
+        }}>
+          <Loader2 className="lucide-spin" size={40} color="#00b4d8" />
+        </div>
+        <h2 style={{ margin: '0 0 10px', color: '#0f172a', fontSize: '24px', fontWeight: '700', letterSpacing: '-0.5px' }}>Verifying Security Token</h2>
+        <p style={{ margin: 0, color: '#64748b', fontSize: '15px' }}>Establishing a secure connection for your assessment...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdf2f2' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'center', maxWidth: '400px' }}>
-        <AlertTriangle size={60} color="#e53e3e" style={{ margin: '0 auto 20px' }} />
-        <h2 style={{ color: '#e53e3e', margin: '0 0 15px' }}>Access Denied</h2>
-        <p style={{ color: '#4a5568', margin: '0 0 20px', lineHeight: '1.5' }}>{error}</p>
-        <p style={{ fontSize: '13px', color: '#a0aec0' }}>If you believe this is a mistake, please contact your administrator for a new link.</p>
+    <div style={{ 
+      height: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'linear-gradient(135deg, #fff5f5 0%, #fdf2f2 100%)',
+      fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    }}>
+      <style>
+        {`
+          @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes pulseError {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(229, 62, 62, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+          }
+        `}
+      </style>
+      <div style={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.85)', 
+        padding: '50px 40px', 
+        borderRadius: '24px', 
+        boxShadow: '0 20px 40px rgba(229, 62, 62, 0.08), 0 1px 3px rgba(0,0,0,0.05)', 
+        textAlign: 'center', 
+        maxWidth: '420px',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.6)',
+        animation: 'slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+      }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          backgroundColor: '#fff5f5',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+          animation: 'pulseError 2s infinite',
+          border: '2px solid #fed7d7'
+        }}>
+          <AlertTriangle size={36} color="#e53e3e" strokeWidth={2.5} />
+        </div>
+        <h2 style={{ color: '#1a202c', margin: '0 0 12px', fontSize: '26px', fontWeight: '700', letterSpacing: '-0.5px' }}>Access Denied</h2>
+        <div style={{ width: '40px', height: '4px', backgroundColor: '#e53e3e', margin: '0 auto 24px', borderRadius: '2px' }}></div>
+        <p style={{ color: '#4a5568', margin: '0 0 28px', lineHeight: '1.6', fontSize: '16px', fontWeight: '400' }}>
+          {error}
+        </p>
+        
+        <div style={{
+          backgroundColor: '#f7fafc',
+          padding: '16px',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <p style={{ fontSize: '13.5px', color: '#718096', margin: 0, lineHeight: '1.5' }}>
+            If you believe this is a mistake, please reach out to <a href="mailto:s06699201@gmail.com" style={{ color: '#00b4d8', textDecoration: 'none', fontWeight: '500' }}>s06699201@gmail.com</a> for a new secure link.
+          </p>
+        </div>
       </div>
     </div>
   );

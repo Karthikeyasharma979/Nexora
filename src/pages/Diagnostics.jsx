@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import { getTestById } from '../utils/db';
-import { CheckCircle2, Circle, Laptop, Info, User, Book, MessageSquare, Check, X as XIcon, AlertTriangle, Send } from 'lucide-react';
+import { CheckCircle2, Circle, Laptop, Info, User, Book, MessageSquare, Check, X as XIcon, AlertTriangle, Send, ChevronRight } from 'lucide-react';
 import './Diagnostics.css';
 
 const Diagnostics = () => {
@@ -33,21 +33,7 @@ const Diagnostics = () => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Anti-zoom enforcement
-  useEffect(() => {
-    const preventZoom = (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.type === 'wheel') e.preventDefault();
-        if (e.type === 'keydown' && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) e.preventDefault();
-      }
-    };
-    window.addEventListener('wheel', preventZoom, { passive: false });
-    window.addEventListener('keydown', preventZoom, { passive: false });
-    return () => {
-      window.removeEventListener('wheel', preventZoom);
-      window.removeEventListener('keydown', preventZoom);
-    };
-  }, []);
+  // Anti-zoom enforcement disabled per user request
 
   useEffect(() => {
     getTestById(testId)
@@ -536,166 +522,179 @@ const Diagnostics = () => {
           )}
         </div>
 
-        {/* Center Vertical Stepper */}
-        <div className="diag-stepper">
-          <div className="diag-stepper-inner">
-            <div className="diag-line"></div>
-            <div className="diag-line-progress" style={{ 
-              height: currentPhase === 0 ? '0px' : 
-                      currentPhase === 1 ? '116px' : 
-                      currentPhase === 2 ? '232px' : 
-                      '348px'
-            }}></div>
-            <div className={`diag-step-icon ${currentPhase >= 0 ? 'active' : ''}`}><Laptop size={24} /></div>
-            <div className={`diag-step-icon ${currentPhase >= 1 ? 'active' : ''}`}><Info size={24} /></div>
-            <div className={`diag-step-icon ${currentPhase >= 2 ? 'active' : ''}`}><User size={24} /></div>
-            <div className={`diag-step-icon ${currentPhase > 2 ? 'active' : ''}`}><Book size={24} /></div>
-          </div>
-        </div>
-
         {/* Right Column */}
         <div className="diag-right">
+          {/* Top Horizontal Stepper */}
+          <div className="diag-stepper">
+            <div className="diag-stepper-inner">
+              <div className="diag-line"></div>
+              <div className="diag-line-progress" style={{ 
+                width: currentPhase === 0 ? '0%' : 
+                       currentPhase === 1 ? '33%' : 
+                       currentPhase === 2 ? '66%' : 
+                       '100%'
+              }}></div>
+              <div className={`diag-step-icon ${currentPhase >= 0 ? 'active' : ''}`}><Laptop size={24} /></div>
+              <div className={`diag-step-icon ${currentPhase >= 1 ? 'active' : ''}`}><Info size={24} /></div>
+              <div className={`diag-step-icon ${currentPhase >= 2 ? 'active' : ''}`}><User size={24} /></div>
+              <div className={`diag-step-icon ${currentPhase > 2 ? 'active' : ''}`}><Book size={24} /></div>
+            </div>
+          </div>
+
+          <div className="diag-right-content-wrapper">
           {currentPhase === 0 ? (
             <>
-              <h2 className="diag-right-title" style={{ fontSize: '22px', color: '#142b51', marginBottom: '20px' }}>
+              <h2 className="diag-right-title">
                 {permissionsStatus !== 'granted' ? 'Requesting Webcam & Audio permission' : 
                  screenStatus !== 'granted' ? 'Requesting Screen Share permission' : 
                  'All Set. Please Proceed'}
               </h2>
               
-              <div className="diag-checklist" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+              <div className="diag-checklist" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 {/* Step 1 */}
-                <div className="diag-check-item success" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
-                  <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ marginTop: '2px', alignSelf: 'flex-start' }} />
-                  <div className="diag-check-text">
-                    <strong style={{ color: '#142b51', fontSize: '15px' }}>1. System Compatibility</strong>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '10px', color: '#64748b', fontSize: '14px', lineHeight: '1.5' }}>
-                      <Info size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
-                      <span>Please make sure Grammar or Spell check plugins are not installed in your system, for example Grammarly, LanguageTool, etc. Please disable/uninstall such plugin(s) as your response might not get saved.</span>
+                <div className="diag-check-item success" style={{ padding: '24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'flex-start', backgroundColor: '#f8fafc', transition: 'background-color 0.3s' }}>
+                  <CheckCircle2 size={26} fill="#10b981" color="white" className="diag-check-icon" style={{ marginTop: '2px', marginRight: '16px', flexShrink: 0 }} />
+                  <div className="diag-check-text" style={{ flex: 1 }}>
+                    <strong style={{ color: '#0f172a', fontSize: '16px', fontWeight: '600' }}>1. System Compatibility</strong>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '12px', color: '#64748b', fontSize: '13.5px', lineHeight: '1.6', backgroundColor: '#f1f5f9', padding: '12px 16px', borderRadius: '8px' }}>
+                      <Info size={16} style={{ marginTop: '3px', flexShrink: 0, color: '#3b82f6' }} />
+                      <span>Please ensure grammar/spell-check plugins (like Grammarly) are disabled, as they may prevent your responses from saving properly.</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Step 2 */}
-                <div className={`diag-check-item ${permissionsStatus === 'requesting' ? 'active' : ''}`} style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+                <div className={`diag-check-item ${permissionsStatus === 'requesting' ? 'active' : ''}`} style={{ padding: '24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'flex-start', transition: 'background-color 0.3s' }}>
                   {permissionsStatus === 'granted' ? (
-                    <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
+                    <CheckCircle2 size={26} fill="#10b981" color="white" className="diag-check-icon" style={{ marginTop: '2px', marginRight: '16px', flexShrink: 0 }} />
                   ) : permissionsStatus === 'denied' ? (
-                    <Circle size={24} color="#dc3545" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
+                    <Circle size={26} color="#ef4444" className="diag-check-icon" style={{ marginTop: '2px', marginRight: '16px', flexShrink: 0 }} />
                   ) : (
-                    <div className="diag-spinner-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }}></div>
+                    <div className="diag-spinner-icon" style={{ width: '26px', height: '26px', marginTop: '2px', marginRight: '16px', flexShrink: 0, borderColor: '#3b82f6', borderTopColor: 'transparent' }}></div>
                   )}
-                  <div className="diag-check-text">
-                    <strong style={{ color: '#142b51', fontSize: '15px' }}>2. Webcam & Audio Permissions</strong>
-                    <span className="diag-check-sub">
-                      {permissionsStatus === 'requesting' && "Requesting Webcam & Audio Permissions..."}
-                      {permissionsStatus === 'granted' && ""}
+                  <div className="diag-check-text" style={{ flex: 1 }}>
+                    <strong style={{ color: '#0f172a', fontSize: '16px', fontWeight: '600' }}>2. Webcam & Audio Permissions</strong>
+                    <div className="diag-check-sub" style={{ marginTop: '8px' }}>
+                      {permissionsStatus === 'requesting' && <span style={{ color: '#64748b', fontSize: '14px' }}>Requesting secure access...</span>}
                       {permissionsStatus === 'denied' && (
-                        <div style={{ marginTop: '10px' }}>
-                          <span style={{ color: '#dc3545', display: 'block', marginBottom: '8px' }}>
-                            {errorMessage || "Permissions Denied. Please allow to continue."}
+                        <div style={{ marginTop: '8px' }}>
+                          <span style={{ color: '#ef4444', display: 'block', marginBottom: '12px', fontSize: '14px' }}>
+                            {errorMessage || "Permissions Denied. Please allow camera & microphone access to continue."}
                           </span>
                           <button 
                             onClick={requestPermissions} 
                             style={{
-                              padding: '6px 12px', 
-                              fontSize: '12px', 
+                              padding: '8px 16px', 
+                              fontSize: '13px', 
                               cursor: 'pointer', 
-                              border: '1px solid #0056b3', 
-                              borderRadius: '4px', 
-                              background: 'white',
-                              color: '#0056b3',
-                              fontWeight: '500'
+                              border: '1px solid #3b82f6', 
+                              borderRadius: '6px', 
+                              background: '#eff6ff',
+                              color: '#2563eb',
+                              fontWeight: '600',
+                              transition: 'all 0.2s'
                             }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#dbeafe'; e.currentTarget.style.borderColor = '#2563eb'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#3b82f6'; }}
                           >
                             Retry Connection
                           </button>
                         </div>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Step 3 */}
                 {testDetails?.requireScreenShare !== false && !(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) && (
-                <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '20px' }}>
+                <div className={`diag-check-item ${screenStatus === 'requesting' || screenStatus === 'pending' ? 'active' : ''} ${screenStatus === 'pending' && permissionsStatus !== 'granted' ? 'disabled' : ''}`} style={{ padding: '24px', display: 'flex', alignItems: 'flex-start', backgroundColor: screenStatus === 'pending' && permissionsStatus !== 'granted' ? '#f8fafc' : 'white', opacity: screenStatus === 'pending' && permissionsStatus !== 'granted' ? 0.6 : 1, transition: 'all 0.3s' }}>
                   {screenStatus === 'granted' ? (
-                    <CheckCircle2 size={24} fill="#1f9d55" color="white" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
+                    <CheckCircle2 size={26} fill="#10b981" color="white" className="diag-check-icon" style={{ marginTop: '2px', marginRight: '16px', flexShrink: 0 }} />
                   ) : screenStatus === 'denied' ? (
-                    <Circle size={24} color="#dc3545" className="diag-check-icon" style={{ alignSelf: 'flex-start', marginTop: '2px' }} />
+                    <Circle size={26} color="#ef4444" className="diag-check-icon" style={{ marginTop: '2px', marginRight: '16px', flexShrink: 0 }} />
                   ) : screenStatus === 'requesting' || (screenStatus === 'pending' && permissionsStatus === 'granted') ? (
-                    <div className="diag-spinner-icon" style={{ width: '24px', height: '24px', alignSelf: 'flex-start', marginTop: '2px', borderColor: '#2980b9', borderTopColor: 'transparent' }}></div>
+                    <div className="diag-spinner-icon" style={{ width: '26px', height: '26px', marginTop: '2px', marginRight: '16px', flexShrink: 0, borderColor: '#3b82f6', borderTopColor: 'transparent' }}></div>
                   ) : (
-                    <span className="diag-number-placeholder" style={{ alignSelf: 'flex-start', marginTop: '2px', width: '24px' }}>3.</span>
+                    <div style={{ width: '26px', height: '26px', marginTop: '2px', marginRight: '16px', flexShrink: 0, border: '2px solid #cbd5e1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '13px', fontWeight: 'bold' }}>3</div>
                   )}
                   
-                  <div className="diag-check-text">
-                    <strong style={{ color: '#142b51', fontSize: '15px' }}>3. Screen Permissions</strong>
-                    <span className="diag-check-sub">
+                  <div className="diag-check-text" style={{ flex: 1 }}>
+                    <strong style={{ color: '#0f172a', fontSize: '16px', fontWeight: '600' }}>3. Screen Share Permissions</strong>
+                    <div className="diag-check-sub" style={{ marginTop: '8px' }}>
                       {screenStatus === 'pending' && permissionsStatus === 'granted' && (
-                        <div style={{ marginTop: '10px' }}>
-                          <span style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', display: 'block', marginBottom: '15px' }}>
-                            Requesting Screen Share Permissions. Please click on <strong>Start Screen Capture</strong> below.
+                        <div style={{ marginTop: '12px' }}>
+                          <span style={{ color: '#475569', fontSize: '14.5px', lineHeight: '1.6', display: 'block', marginBottom: '16px' }}>
+                            We require screen sharing to ensure academic integrity. Please click <strong>Start Screen Capture</strong> below and select your entire screen.
                           </span>
                           <button 
                             onClick={window?.navigator?.userAgent?.toLowerCase()?.includes('electron') ? requestScreenCaptureElectron : requestScreenShare}
                             style={{
-                              padding: '10px 20px', 
-                              fontSize: '14px', 
+                              padding: '10px 24px', 
+                              fontSize: '14.5px', 
                               cursor: 'pointer', 
                               border: 'none', 
-                              borderRadius: '4px', 
-                              background: '#2980b9',
+                              borderRadius: '6px', 
+                              background: '#3b82f6',
                               color: 'white',
-                              fontWeight: '500'
+                              fontWeight: '600',
+                              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                              transition: 'all 0.2s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
                             }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.transform = 'none'; }}
                           >
-                            Start Screen Capture
+                            <Laptop size={18} /> Start Screen Capture
                           </button>
                         </div>
                       )}
-                      {screenStatus === 'requesting' && "Requesting Screen Share Permission..."}
+                      {screenStatus === 'requesting' && <span style={{ color: '#64748b', fontSize: '14px' }}>Waiting for screen selection...</span>}
                       {screenStatus === 'granted' && (
-                        <div style={{ marginTop: '10px' }}>
+                        <div style={{ marginTop: '12px' }}>
                           <span style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6' }}>
-                            Screen Share Permissions available.<br/>
-                            Click on the <strong>'Hide'</strong> Button shown below for better visibility.
+                            Screen recording active.<br/>
+                            Click <strong>'Hide'</strong> on the browser popup below for better visibility during the test.
                           </span>
                           
-                          <div style={{ border: '2px solid #bcd2e5', padding: '10px 15px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px', width: 'fit-content', backgroundColor: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                            <div style={{ display: 'flex', gap: '2px', marginRight: '5px' }}>
-                              <div style={{ width: '3px', height: '14px', background: '#6c757d' }}></div>
-                              <div style={{ width: '3px', height: '14px', background: '#6c757d' }}></div>
+                          <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', width: 'fit-content', backgroundColor: '#f8fafc', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', gap: '3px', marginRight: '4px' }}>
+                              <div style={{ width: '4px', height: '16px', background: '#94a3b8', borderRadius: '2px' }}></div>
+                              <div style={{ width: '4px', height: '16px', background: '#94a3b8', borderRadius: '2px' }}></div>
                             </div>
-                            <span style={{ fontSize: '13px', color: '#142b51', fontWeight: '500' }}>nexora.com is sharing your screen.</span>
-                            <button style={{ backgroundColor: '#1441a3', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', fontWeight: '500', marginLeft: '10px', cursor: 'default' }}>Stop sharing</button>
-                            <button style={{ backgroundColor: 'transparent', color: '#1441a3', border: 'none', padding: '6px 12px', fontSize: '13px', fontWeight: '500', cursor: 'default' }}>Hide</button>
+                            <span style={{ fontSize: '13.5px', color: '#1e293b', fontWeight: '500' }}>nexora.com is sharing your screen.</span>
+                            <button style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: '600', marginLeft: '12px', cursor: 'default' }}>Stop sharing</button>
+                            <button style={{ backgroundColor: 'transparent', color: '#2563eb', border: 'none', padding: '8px 16px', fontSize: '13px', fontWeight: '600', cursor: 'default', opacity: 0.9 }}>Hide</button>
                           </div>
                         </div>
                       )}
                       {screenStatus === 'denied' && (
-                        <div style={{ marginTop: '10px' }}>
-                          <span style={{ color: '#dc3545', display: 'block', marginBottom: '8px' }}>
-                            {screenErrorMessage || "Screen Share Denied. Please allow to continue."}
+                        <div style={{ marginTop: '12px' }}>
+                          <span style={{ color: '#ef4444', display: 'block', marginBottom: '12px', fontSize: '14px' }}>
+                            {screenErrorMessage || "Screen Share Denied. You must allow screen sharing to take this assessment."}
                           </span>
                           <button 
                             onClick={window?.navigator?.userAgent?.toLowerCase()?.includes('electron') ? requestScreenCaptureElectron : requestScreenShare}
                             style={{
-                              padding: '6px 12px', 
-                              fontSize: '12px', 
+                              padding: '8px 16px', 
+                              fontSize: '13px', 
                               cursor: 'pointer', 
-                              border: '1px solid #0056b3', 
-                              borderRadius: '4px', 
-                              background: 'white',
-                              color: '#0056b3',
-                              fontWeight: '500'
+                              border: '1px solid #ef4444', 
+                              borderRadius: '6px', 
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              fontWeight: '600',
+                              transition: 'all 0.2s'
                             }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#dc2626'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#ef4444'; }}
                           >
                             Retry Screen Share
                           </button>
                         </div>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </div>
                 )}
@@ -926,15 +925,15 @@ const Diagnostics = () => {
           ) : null}
 
           {currentPhase === 0 && (
-            <div style={{ marginTop: '20px' }}>
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
               <button 
                 className={`diag-proceed-btn ${
-                  permissionsStatus === 'granted' && screenStatus === 'granted' ? 'enabled' : 'disabled'
+                  permissionsStatus === 'granted' && (screenStatus === 'granted' || testDetails?.requireScreenShare === false || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) ? 'enabled' : 'disabled'
                 }`}
                 onClick={handleProceed}
-                disabled={permissionsStatus !== 'granted' || screenStatus !== 'granted'}
+                disabled={permissionsStatus !== 'granted' || (screenStatus !== 'granted' && testDetails?.requireScreenShare !== false && !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))}
               >
-                Proceed
+                Proceed <ChevronRight size={18} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'text-bottom' }} />
               </button>
             </div>
           )}
@@ -944,6 +943,7 @@ const Diagnostics = () => {
               Agree & Proceed
             </button>
           )}
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Star, X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Star, X, CheckCircle, XCircle, AlertCircle, Image } from 'lucide-react';
 import './TestCompleted.css';
 
 const TestCompleted = () => {
@@ -58,7 +58,7 @@ const TestCompleted = () => {
         ) : (
           <>
             <div className="tc-illustration">
-              <img src="/clapping_hands.png" alt="Celebration" />
+              <img src="/congratulations.jpg" alt="Celebration" style={{ maxWidth: '300px', height: 'auto', borderRadius: '16px' }} />
             </div>
             <div className="tc-content">
               <h2 className="tc-congratulations">
@@ -170,6 +170,18 @@ const TestCompleted = () => {
                         <span className="text-secondary ml-2 text-sm">(Unattempted)</span>
                       )}
                     </div>
+                    {q.referenceImage && (
+                      <div style={{ margin: '10px 0 15px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', marginBottom: '8px', fontWeight: '500' }}>
+                          <Image size={16} /> Reference Image
+                        </div>
+                        <img 
+                          src={q.referenceImage} 
+                          alt="Question Reference" 
+                          style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '6px', border: '1px solid #e2e8f0', objectFit: 'contain' }}
+                        />
+                      </div>
+                    )}
                     <div className="tc-report-options">
                       {q.options.map((opt, optIdx) => {
                         let optClass = 'tc-report-opt';

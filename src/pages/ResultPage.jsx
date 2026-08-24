@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Award, FileText, AlertTriangle, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Award, FileText, AlertTriangle, ShieldCheck, ChevronRight, CheckCircle, XCircle, Image } from 'lucide-react';
 import { API_URL } from '../utils/db';
 import './ResultPage.css';
 
@@ -130,6 +130,73 @@ const ResultPage = () => {
                   <li key={i}>{v.type || v}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {report.questions && report.questions.length > 0 && (
+            <div className="rp-detailed-report">
+              <h3 style={{ marginTop: '30px', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}>Detailed Test Report</h3>
+              {report.questions.map((q, idx) => {
+                const candidateAnswerText = report.answers ? report.answers[q.id] : undefined;
+                const correctText = report.correctAnswers ? report.correctAnswers[q.id] : undefined;
+                const isCorrect = candidateAnswerText !== undefined && candidateAnswerText === correctText;
+                const isAttempted = candidateAnswerText !== undefined;
+
+                return (
+                  <div key={q.id} style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '12px', color: '#334155', display: 'flex', alignItems: 'flex-start' }}>
+                      <span style={{ marginRight: '8px' }}>Q{idx + 1}.</span> 
+                      <span style={{ flex: 1 }}>{q.text}</span>
+                      {isAttempted ? (
+                        isCorrect ? <CheckCircle style={{ color: '#10b981', marginLeft: '10px', flexShrink: 0 }} size={18} /> : <XCircle style={{ color: '#ef4444', marginLeft: '10px', flexShrink: 0 }} size={18} />
+                      ) : (
+                        <span style={{ color: '#94a3b8', marginLeft: '10px', fontSize: '12px', flexShrink: 0 }}>(Unattempted)</span>
+                      )}
+                    </div>
+                    
+                    {q.referenceImage && (
+                      <div style={{ margin: '10px 0 15px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', marginBottom: '8px', fontWeight: '500' }}>
+                          <Image size={16} /> Reference Image
+                        </div>
+                        <img 
+                          src={q.referenceImage} 
+                          alt="Question Reference" 
+                          style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '6px', border: '1px solid #e2e8f0', objectFit: 'contain' }}
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {q.options.map((opt, optIdx) => {
+                        let optBg = 'white';
+                        let optBorder = '1px solid #cbd5e1';
+                        let optColor = '#475569';
+                        let fw = 'normal';
+
+                        if (opt === correctText) {
+                          optBg = '#d1fae5';
+                          optBorder = '1px solid #34d399';
+                          optColor = '#065f46';
+                          fw = '500';
+                        } else if (opt === candidateAnswerText && !isCorrect) {
+                          optBg = '#fee2e2';
+                          optBorder = '1px solid #f87171';
+                          optColor = '#991b1b';
+                          fw = '500';
+                        }
+
+                        return (
+                          <div key={optIdx} style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: optBg, border: optBorder, color: optColor, fontSize: '14px', fontWeight: fw }}>
+                            {opt}
+                            {opt === candidateAnswerText && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: '600' }}> (Your Answer)</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
