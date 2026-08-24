@@ -504,7 +504,7 @@ app.post('/api/reports', async (req, res) => {
           aiRecommendation = aiResponse.choices[0].message.content;
         }
       } catch (err) {
-        console.error("Error generating AI recommendation:", err);
+        console.warn("AI Recommendation API is currently unavailable (Scheduled Retirement or API Error). Using default recommendation.");
       }
     }
 
