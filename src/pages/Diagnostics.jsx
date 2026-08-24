@@ -423,7 +423,7 @@ const Diagnostics = () => {
       <div className="diag-main">
         {/* Left Column */}
         <div className="diag-left">
-          {currentPhase === 0 || currentPhase === 1 || currentPhase === 3 ? (
+          {currentPhase === 0 || currentPhase === 1 || currentPhase === 3 || testDetails?.requireCamera === false ? (
             <div className="diag-test-info">
               <p className="diag-hi">Hi Candidate,</p>
               <h2 className="diag-welcome">Welcome to</h2>
